@@ -55,7 +55,7 @@ func main() {
 		log.Fatalf("error getting docker containers: %s", err)
 	}
 
-	used := map[string]string{}
+	used := make(map[string]struct{}, len(containers))
 
 	for _, container := range containers {
 		inspected, err := docker.ContainerInspect(container.ID)
