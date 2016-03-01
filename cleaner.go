@@ -64,54 +64,36 @@ func main() {
 			continue
 		}
 
-		used[inspected.Image] = container.ID
+		used[inspected.Image] = struct{}{}
 
-		parent := imageTree[inspected.Image].ParentID
-		for {
-			if parent == "" {
-				break
-			}
-
-			used[parent] = container.ID
-			parent = imageTree[parent].ParentID
+		for parent := imageTree[inspected.Image].ParentID; len(parent) != 0; parent = imageTree[parent].ParentID {
+			used[parent] = struct{}{}
 		}
 	}
 
+	removalImageLoop:
 	for _, image := range topImages {
 		if _, ok := used[image.ID]; !ok {
-			skip := false
 			for _, tag := range image.RepoTags {
 				if _, ok := excluded[tag]; ok {
-					skip = true
-				}
-
-				if skip {
-					break
+					log.Printf("Skipping %s: %s", image.ID, strings.Join(image.RepoTags, ","))
+					continue removalImageLoop
 				}
 			}
 
-			if skip {
-				log.Printf("Skipping %s: %s", image.ID, strings.Join(image.RepoTags, ","))
-				continue
-			}
-
-			log.Printf("Going to remove %s: %s", image.ID, strings.Join(image.RepoTags, ","))
+			log.Printf("Going to remove image %s: %s", image.ID, strings.Join(image.RepoTags, ","))
 
 			if !*dryRun {
-				if len(image.RepoTags) < 2 {
-					// <none>:<none> case, just remove by id
-					_, err := docker.ImageRemove(types.ImageRemoveOptions{ImageID: image.ID, PruneChildren: true})
-					if err != nil {
-						log.Printf("error while removing %s (%s): %s", image.ID, strings.Join(image.RepoTags, ","), err)
-					}
+				var imagesToNuke []string
+				if len(image.RepoTags) <= 1 {
+					imagesToNuke = append(imagesToNuke, image.ID)
 				} else {
-					// several tags case, remove each by name
-					for _, r := range image.RepoTags {
-						_, err := docker.ImageRemove(types.ImageRemoveOptions{ImageID: r, PruneChildren: true})
-						if err != nil {
-							log.Printf("error while removing %s (%s): %s", r, strings.Join(image.RepoTags, ","), err)
-							continue
-						}
+					imagesToNuke = image.RepoTags
+				}
+				for _, imageIdOrTag := range imagesToNuke {
+					_, err := docker.ImageRemove(types.ImageRemoveOptions{ImageID: imageIdOrTag, PruneChildren: true})
+					if err != nil {
+						log.Printf("error while removing image %s: %s", imageIdOrTag, err)
 					}
 				}
 			}
