@@ -1,11 +1,11 @@
-FROM gliderlabs/alpine:3.3
+FROM golang:alpine
+MAINTAINER Christian Höltje <docwhat@gerf.org>
 
-COPY . /go/src/github.com/bobrik/docker-image-cleaner
+RUN apk add --update --no-cache go git
 
-RUN apk-install go git && \
-    GOPATH=/go go get github.com/bobrik/docker-image-cleaner && \
-    apk del go git && \
-    mv /go/bin/docker-image-cleaner /bin/docker-image-cleaner && \
-    rm -rf /go
+COPY .git *.go /go/src/github.com/docwhat/docker-image-cleaner/
+RUN go get github.com/docwhat/docker-image-cleaner
 
-ENTRYPOINT ["/bin/docker-image-cleaner"]
+RUN apk del go git
+
+ENTRYPOINT ["/go/bin/docker-image-cleaner"]
