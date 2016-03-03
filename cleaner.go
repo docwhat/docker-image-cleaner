@@ -66,8 +66,14 @@ func initClient() {
 	}
 }
 
+func shortImageDigest(id string) string {
+	if strings.HasPrefix(id, "sha256:") {
+		return id[7:14]
+	}
+	return id
+}
+
 func cleanLeafImages() {
-	log.Printf("Scanning leaf images...")
 	excluded := map[string]struct{}{}
 
 	for _, i := range *flag_excludes {
@@ -119,7 +125,7 @@ func cleanLeafImages() {
 
 			if !imagesToSkip[parentId] {
 				imagesToSkip[parentId] = true
-				log.Printf("Skipping tagged parent image %s: %s", parentId, strings.Join(image.RepoTags, ","))
+				log.Printf("Skipping tagged parent image %s: %s", shortImageDigest(parentId), strings.Join(image.RepoTags, ","))
 			}
 		}
 	}
@@ -132,7 +138,7 @@ func cleanLeafImages() {
 
 		for _, tag := range image.RepoTags {
 			if _, ok := excluded[tag]; ok {
-				log.Printf("Skipping excluded image %s: %s", image.ID, strings.Join(image.RepoTags, ","))
+				log.Printf("Skipping excluded image %s: %s", shortImageDigest(image.ID), strings.Join(image.RepoTags, ","))
 				imagesToSkip[image.ID] = true
 			}
 		}
@@ -150,8 +156,6 @@ func cleanLeafImages() {
 }
 
 func cleanDanglingImages() {
-	log.Printf("Scanning dangling images...")
-
 	imagesToSkip := make(map[string]bool)
 
 	danglingFilter := filters.NewArgs()
@@ -181,7 +185,7 @@ func pruneUnsafeImages(skipMap map[string]bool, images []types.Image) {
 		created := time.Unix(image.Created, 0)
 		if created.Add(*flag_safetyDuration).After(now) {
 			if !skipMap[image.ID] {
-				log.Printf("Skipping recent image %s: only %s old", image.ID, now.Sub(created))
+				log.Printf("Skipping recent image %s: only %s old", shortImageDigest(image.ID), now.Sub(created))
 				skipMap[image.ID] = true
 			}
 		}
@@ -190,7 +194,7 @@ func pruneUnsafeImages(skipMap map[string]bool, images []types.Image) {
 
 func nukeImage(kind string, image types.Image, really_delete bool) {
 	if really_delete {
-		log.Printf("Deleting %s image %s: %s", kind, image.ID, strings.Join(image.RepoTags, ","))
+		log.Printf("Deleting %s image %s: %s", kind, shortImageDigest(image.ID), strings.Join(image.RepoTags, ","))
 
 		var imagesToNuke []string
 		if len(image.RepoTags) <= 1 {
@@ -201,10 +205,10 @@ func nukeImage(kind string, image types.Image, really_delete bool) {
 		for _, imageIdOrTag := range imagesToNuke {
 			_, err := docker.ImageRemove(types.ImageRemoveOptions{ImageID: imageIdOrTag, PruneChildren: true})
 			if err != nil {
-				log.Printf("Error while removing %s image %s: %s", kind, imageIdOrTag, err)
+				log.Printf("Error while removing %s image %s: %s", kind, shortImageDigest(imageIdOrTag), err)
 			}
 		}
 	} else {
-		log.Printf("Would have deleted %s image %s: %s", kind, image.ID, strings.Join(image.RepoTags, ","))
+		log.Printf("Would have deleted %s image %s: %s", kind, shortImageDigest(image.ID), strings.Join(image.RepoTags, ","))
 	}
 }
