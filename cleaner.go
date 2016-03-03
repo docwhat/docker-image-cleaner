@@ -9,6 +9,7 @@ import (
 
 	"github.com/docker/engine-api/client"
 	"github.com/docker/engine-api/types"
+	"github.com/docker/engine-api/types/filters"
 )
 
 var flag_exclude string
@@ -24,6 +25,7 @@ func main() {
 
 	initClient()
 	cleanLeafImages()
+	cleanDanglingImages()
 }
 
 func initClient() {
@@ -102,6 +104,24 @@ func cleanLeafImages() {
 	}
 }
 
+func cleanDanglingImages() {
+	log.Printf("Scanning dangling images...")
+	danglingFilter := filters.NewArgs()
+	danglingFilter.Add("dangling", "true")
+
+	danglingImages, err := docker.ImageList(types.ImageListOptions{Filters: danglingFilter})
+	if err != nil {
+		log.Fatalf("error getting dangling docker images: %s", err)
+	}
+
+	for _, image := range danglingImages {
+		created := time.Unix(image.Created, 0)
+		if created.Add(flag_danglingDuration).Before(time.Now()) {
+			nukeImage(image)
+		}
+	}
+}
+
 func nukeImage(image types.Image) {
 	if flag_dryRun {
 		log.Printf("Would have deleted image %s: %s", image.ID, strings.Join(image.RepoTags, ","))
@@ -122,21 +142,3 @@ func nukeImage(image types.Image) {
 		}
 	}
 }
-
-//   danglingFilter := filters.NewArgs()
-//   danglingFilter.Add("dangling", "true")
-
-//   danglingImages, err := docker.ImageList(types.ImageListOptions{Filters: danglingFilter})
-//   if err != nil {
-//     log.Fatalf("error getting dangling docker images: %s", err)
-//   }
-
-//   for _, image := range danglingImages {
-//     created := time.Unix(image.Created, 0)
-//     if created.Add(danglingDuration).After(time.Now()) {
-//       imagesToSkip[image.ID] = true
-//       log.Printf("Hrmf used: %s %s", image.ID, created)
-//     } else {
-//       log.Printf("Hrmf nuke: %s %s", image.ID, created)
-//     }
-//   }
