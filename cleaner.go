@@ -13,14 +13,16 @@ import (
 )
 
 var flag_exclude string
-var flag_dryRun bool
+var flag_deleteLeaf bool
+var flag_deleteDangling bool
 var flag_danglingDuration time.Duration
 var docker *client.Client
 
 func main() {
-	flag.StringVar(&flag_exclude, "exclude", "", "images to exclude, image:tag[,image:tag]")
-	flag.BoolVar(&flag_dryRun, "dry-run", false, "just list containers to remove")
-	flag.DurationVar(&flag_danglingDuration, "dangling-duration", time.Hour, "how far into the past to protect dangling images")
+	flag.StringVar(&flag_exclude, "exclude", "", "Leaf Images to exclude: image:tag[,image:tag]")
+	flag.BoolVar(&flag_deleteDangling, "delete-dangling", false, "Delete dangling images")
+	flag.BoolVar(&flag_deleteLeaf, "delete-leaf", false, "Delete leaf images")
+	flag.DurationVar(&flag_danglingDuration, "dangling-duration", time.Hour, "How far into the past to protect dangling images")
 	flag.Parse()
 
 	initClient()
@@ -100,13 +102,15 @@ func cleanLeafImages() {
 
 	for _, image := range leafImages {
 		if _, ok := imagesToSkip[image.ID]; !ok {
-			nukeImage("leaf", image)
+			nukeImage("leaf", image, flag_deleteLeaf)
 		}
 	}
 }
 
 func cleanDanglingImages() {
 	log.Printf("Scanning dangling images...")
+	now := time.Now()
+
 	danglingFilter := filters.NewArgs()
 	danglingFilter.Add("dangling", "true")
 
@@ -117,16 +121,16 @@ func cleanDanglingImages() {
 
 	for _, image := range danglingImages {
 		created := time.Unix(image.Created, 0)
-		if created.Add(flag_danglingDuration).Before(time.Now()) {
-			nukeImage("dangling", image)
+		if created.Add(flag_danglingDuration).Before(now) {
+			nukeImage("dangling", image, flag_deleteDangling)
+		} else {
+			log.Printf("Skipping recent dangling image from %s ago: %s", (now.Sub(created).String()), image.ID)
 		}
 	}
 }
 
-func nukeImage(kind string, image types.Image) {
-	if flag_dryRun {
-		log.Printf("Would have deleted %s image %s: %s", kind, image.ID, strings.Join(image.RepoTags, ","))
-	} else {
+func nukeImage(kind string, image types.Image, really_delete bool) {
+	if really_delete {
 		log.Printf("Deleting %s image %s: %s", kind, image.ID, strings.Join(image.RepoTags, ","))
 
 		var imagesToNuke []string
@@ -141,5 +145,7 @@ func nukeImage(kind string, image types.Image) {
 				log.Printf("Error while removing %s image %s: %s", kind, imageIdOrTag, err)
 			}
 		}
+	} else {
+		log.Printf("Would have deleted %s image %s: %s", kind, image.ID, strings.Join(image.RepoTags, ","))
 	}
 }
