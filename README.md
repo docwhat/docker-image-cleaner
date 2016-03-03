@@ -8,6 +8,8 @@ Docker image cleaner
 
 This command looks for images that should be okay to clean up.
 
+This tool honors [semver](http://semver.org) versioning.
+
 Usage
 -----
 
