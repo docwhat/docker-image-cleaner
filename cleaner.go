@@ -77,6 +77,7 @@ func cleanLeafImages() {
 
 	imagesToSkip := make(map[string]bool)
 
+	// Find images belonging to containers.
 	for _, container := range containers {
 		inspected, err := docker.ContainerInspect(container.ID)
 		if err != nil {
@@ -91,7 +92,29 @@ func cleanLeafImages() {
 		}
 	}
 
+	// Find images that are "root" images.
 	for _, image := range leafImages {
+		if imagesToSkip[image.ID] {
+			continue
+		}
+
+		var topParentId string
+		for parentId := image.ParentID; len(parentId) != 0; parentId = imageTree[parentId].ParentID {
+			topParentId = parentId
+		}
+
+		if len(topParentId) != 0 && !imagesToSkip[topParentId] {
+			imagesToSkip[topParentId] = true
+			log.Printf("Skipping top parent image %s: %s", topParentId, strings.Join(imageTree[topParentId].RepoTags, ","))
+		}
+	}
+
+	// Find images in the exclude list.
+	for _, image := range leafImages {
+		if imagesToSkip[image.ID] {
+			continue
+		}
+
 		for _, tag := range image.RepoTags {
 			if _, ok := excluded[tag]; ok {
 				log.Printf("Skipping excluded image %s: %s", image.ID, strings.Join(image.RepoTags, ","))
@@ -101,9 +124,11 @@ func cleanLeafImages() {
 	}
 
 	for _, image := range leafImages {
-		if _, ok := imagesToSkip[image.ID]; !ok {
-			nukeImage("leaf", image, flag_deleteLeaf)
+		if imagesToSkip[image.ID] {
+			continue
 		}
+
+		nukeImage("leaf", image, flag_deleteLeaf)
 	}
 }
 
