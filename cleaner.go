@@ -1,29 +1,31 @@
 package main
 
 import (
-	"flag"
 	"log"
 	"os"
 	"strings"
 	"time"
+
+	"gopkg.in/alecthomas/kingpin.v2"
 
 	"github.com/docker/engine-api/client"
 	"github.com/docker/engine-api/types"
 	"github.com/docker/engine-api/types/filters"
 )
 
-var flag_exclude string
-var flag_deleteLeaf bool
-var flag_deleteDangling bool
-var flag_danglingDuration time.Duration
-var docker *client.Client
+var (
+	Version               = "2.0"
+	flag_excludes         = kingpin.Flag("exclude", "Leaf images to exclude specified by image:tag").Short('x').PlaceHolder("IMAGE:TAG").Strings()
+	flag_deleteLeaf       = kingpin.Flag("delete-dangling", "Delete dangling images").Default("false").Bool()
+	flag_deleteDangling   = kingpin.Flag("delete-leaf", "Delete leaf images").Default("false").Bool()
+	flag_danglingDuration = kingpin.Flag("dangling-duration", "How far into the past to protect dangling images").Short('d').Default("1h").Duration()
+	docker                *client.Client
+)
 
 func main() {
-	flag.StringVar(&flag_exclude, "exclude", "", "Leaf Images to exclude: image:tag[,image:tag]")
-	flag.BoolVar(&flag_deleteDangling, "delete-dangling", false, "Delete dangling images")
-	flag.BoolVar(&flag_deleteLeaf, "delete-leaf", false, "Delete leaf images")
-	flag.DurationVar(&flag_danglingDuration, "dangling-duration", time.Hour, "How far into the past to protect dangling images")
-	flag.Parse()
+	kingpin.CommandLine.HelpFlag.Short('h')
+	kingpin.Version(Version)
+	kingpin.Parse()
 
 	initClient()
 	cleanLeafImages()
@@ -49,10 +51,8 @@ func cleanLeafImages() {
 	log.Printf("Scanning leaf images...")
 	excluded := map[string]struct{}{}
 
-	if len(flag_exclude) > 0 {
-		for _, i := range strings.Split(flag_exclude, ",") {
-			excluded[i] = struct{}{}
-		}
+	for _, i := range *flag_excludes {
+		excluded[i] = struct{}{}
 	}
 
 	leafImages, err := docker.ImageList(types.ImageListOptions{})
@@ -128,7 +128,7 @@ func cleanLeafImages() {
 			continue
 		}
 
-		nukeImage("leaf", image, flag_deleteLeaf)
+		nukeImage("leaf", image, *flag_deleteLeaf)
 	}
 }
 
@@ -146,8 +146,8 @@ func cleanDanglingImages() {
 
 	for _, image := range danglingImages {
 		created := time.Unix(image.Created, 0)
-		if created.Add(flag_danglingDuration).Before(now) {
-			nukeImage("dangling", image, flag_deleteDangling)
+		if created.Add(*flag_danglingDuration).Before(now) {
+			nukeImage("dangling", image, *flag_deleteDangling)
 		} else {
 			log.Printf("Skipping recent dangling image from %s ago: %s", (now.Sub(created).String()), image.ID)
 		}
