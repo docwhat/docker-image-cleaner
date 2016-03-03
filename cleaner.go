@@ -5,16 +5,28 @@ import (
 	"log"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/docker/engine-api/client"
 	"github.com/docker/engine-api/types"
 )
 
+var flag_exclude string
+var flag_dryRun bool
+var flag_danglingDuration time.Duration
+var docker *client.Client
+
 func main() {
-	exclude := flag.String("exclude", "", "images to exclude, image:tag[,image:tag]")
-	dryRun := flag.Bool("dry-run", false, "just list containers to remove")
+	flag.StringVar(&flag_exclude, "exclude", "", "images to exclude, image:tag[,image:tag]")
+	flag.BoolVar(&flag_dryRun, "dry-run", false, "just list containers to remove")
+	flag.DurationVar(&flag_danglingDuration, "dangling-duration", time.Hour, "how far into the past to protect dangling images")
 	flag.Parse()
 
+	initClient()
+	cleanLeafImages()
+}
+
+func initClient() {
 	if os.Getenv("DOCKER_HOST") == "" {
 		err := os.Setenv("DOCKER_HOST", "unix:///var/run/docker.sock")
 		if err != nil {
@@ -22,20 +34,23 @@ func main() {
 		}
 	}
 
+	new_client, err := client.NewEnvClient()
+	if err != nil {
+		log.Fatalf("error creating docker client: %s", err)
+	}
+	docker = new_client
+}
+
+func cleanLeafImages() {
 	excluded := map[string]struct{}{}
 
-	if len(*exclude) > 0 {
-		for _, i := range strings.Split(*exclude, ",") {
+	if len(flag_exclude) > 0 {
+		for _, i := range strings.Split(flag_exclude, ",") {
 			excluded[i] = struct{}{}
 		}
 	}
 
-	docker, err := client.NewEnvClient()
-	if err != nil {
-		log.Fatalf("error creating docker client: %s", err)
-	}
-
-	topImages, err := docker.ImageList(types.ImageListOptions{})
+	leafImages, err := docker.ImageList(types.ImageListOptions{})
 	if err != nil {
 		log.Fatalf("error getting docker images: %s", err)
 	}
@@ -55,7 +70,7 @@ func main() {
 		log.Fatalf("error getting docker containers: %s", err)
 	}
 
-	used := make(map[string]struct{}, len(containers))
+	imagesToSkip := make(map[string]bool)
 
 	for _, container := range containers {
 		inspected, err := docker.ContainerInspect(container.ID)
@@ -64,39 +79,64 @@ func main() {
 			continue
 		}
 
-		used[inspected.Image] = struct{}{}
+		imagesToSkip[inspected.Image] = true
 
 		for parent := imageTree[inspected.Image].ParentID; len(parent) != 0; parent = imageTree[parent].ParentID {
-			used[parent] = struct{}{}
+			imagesToSkip[parent] = true
 		}
 	}
 
-	removalImageLoop:
-	for _, image := range topImages {
-		if _, ok := used[image.ID]; !ok {
-			for _, tag := range image.RepoTags {
-				if _, ok := excluded[tag]; ok {
-					log.Printf("Skipping %s: %s", image.ID, strings.Join(image.RepoTags, ","))
-					continue removalImageLoop
-				}
+	for _, image := range leafImages {
+		for _, tag := range image.RepoTags {
+			if _, ok := excluded[tag]; ok {
+				log.Printf("Skipping excluded image %s: %s", image.ID, strings.Join(image.RepoTags, ","))
+				imagesToSkip[image.ID] = true
 			}
+		}
+	}
 
-			log.Printf("Going to remove image %s: %s", image.ID, strings.Join(image.RepoTags, ","))
+	for _, image := range leafImages {
+		if _, ok := imagesToSkip[image.ID]; !ok {
+			nukeImage(image)
+		}
+	}
+}
 
-			if !*dryRun {
-				var imagesToNuke []string
-				if len(image.RepoTags) <= 1 {
-					imagesToNuke = append(imagesToNuke, image.ID)
-				} else {
-					imagesToNuke = image.RepoTags
-				}
-				for _, imageIdOrTag := range imagesToNuke {
-					_, err := docker.ImageRemove(types.ImageRemoveOptions{ImageID: imageIdOrTag, PruneChildren: true})
-					if err != nil {
-						log.Printf("error while removing image %s: %s", imageIdOrTag, err)
-					}
-				}
+func nukeImage(image types.Image) {
+	if flag_dryRun {
+		log.Printf("Would have deleted image %s: %s", image.ID, strings.Join(image.RepoTags, ","))
+	} else {
+		log.Printf("Deleting leaf image %s: %s", image.ID, strings.Join(image.RepoTags, ","))
+
+		var imagesToNuke []string
+		if len(image.RepoTags) <= 1 {
+			imagesToNuke = append(imagesToNuke, image.ID)
+		} else {
+			imagesToNuke = image.RepoTags
+		}
+		for _, imageIdOrTag := range imagesToNuke {
+			_, err := docker.ImageRemove(types.ImageRemoveOptions{ImageID: imageIdOrTag, PruneChildren: true})
+			if err != nil {
+				log.Printf("error while removing image %s: %s", imageIdOrTag, err)
 			}
 		}
 	}
 }
+
+//   danglingFilter := filters.NewArgs()
+//   danglingFilter.Add("dangling", "true")
+
+//   danglingImages, err := docker.ImageList(types.ImageListOptions{Filters: danglingFilter})
+//   if err != nil {
+//     log.Fatalf("error getting dangling docker images: %s", err)
+//   }
+
+//   for _, image := range danglingImages {
+//     created := time.Unix(image.Created, 0)
+//     if created.Add(danglingDuration).After(time.Now()) {
+//       imagesToSkip[image.ID] = true
+//       log.Printf("Hrmf used: %s %s", image.ID, created)
+//     } else {
+//       log.Printf("Hrmf nuke: %s %s", image.ID, created)
+//     }
+//   }
