@@ -74,12 +74,6 @@ func shortImageDigest(id string) string {
 }
 
 func cleanLeafImages() {
-	excluded := map[string]struct{}{}
-
-	for _, i := range *flag_excludes {
-		excluded[i] = struct{}{}
-	}
-
 	leafImages, err := docker.ImageList(types.ImageListOptions{})
 	if err != nil {
 		log.Fatalf("Error getting docker images: %s", err)
@@ -130,20 +124,7 @@ func cleanLeafImages() {
 		}
 	}
 
-	// Find images in the exclude list.
-	for _, image := range leafImages {
-		if imagesToSkip[image.ID] {
-			continue
-		}
-
-		for _, tag := range image.RepoTags {
-			if _, ok := excluded[tag]; ok {
-				log.Printf("Skipping excluded image %s: %s", shortImageDigest(image.ID), strings.Join(image.RepoTags, ","))
-				imagesToSkip[image.ID] = true
-			}
-		}
-	}
-
+	pruneExcludedImages(imagesToSkip, leafImages)
 	pruneUnsafeImages(imagesToSkip, leafImages)
 
 	for _, image := range leafImages {
@@ -179,8 +160,28 @@ func cleanDanglingImages() {
 	}
 }
 
-func pruneUnsafeImages(skipMap map[string]bool, images []types.Image) {
+func pruneExcludedImages(skipMap map[string]bool, images []types.Image) {
+	excluded := map[string]struct{}{}
 
+	for _, i := range *flag_excludes {
+		excluded[i] = struct{}{}
+	}
+
+	for _, image := range images {
+		if skipMap[image.ID] {
+			continue
+		}
+
+		for _, tag := range image.RepoTags {
+			if _, ok := excluded[tag]; ok {
+				log.Printf("Skipping excluded image %s: %s", shortImageDigest(image.ID), strings.Join(image.RepoTags, ","))
+				skipMap[image.ID] = true
+			}
+		}
+	}
+}
+
+func pruneUnsafeImages(skipMap map[string]bool, images []types.Image) {
 	for _, image := range images {
 		created := time.Unix(image.Created, 0)
 		if created.Add(*flag_safetyDuration).After(now) {
