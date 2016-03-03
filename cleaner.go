@@ -15,17 +15,23 @@ import (
 
 var (
 	Version               = "2.0"
-	flag_excludes         = kingpin.Flag("exclude", "Leaf images to exclude specified by image:tag").Short('x').PlaceHolder("IMAGE:TAG").Strings()
-	flag_deleteLeaf       = kingpin.Flag("delete-dangling", "Delete dangling images").Default("false").Bool()
-	flag_deleteDangling   = kingpin.Flag("delete-leaf", "Delete leaf images").Default("false").Bool()
-	flag_danglingDuration = kingpin.Flag("dangling-duration", "How far into the past to protect dangling images").Short('d').Default("1h").Duration()
+	app                   = kingpin.New("docker-image-cleaner", "Clean up docker images that seem safe to remove.")
+	flag_excludes         = app.Flag("exclude", "Leaf images to exclude specified by image:tag").Short('x').PlaceHolder("IMAGE:TAG").Strings()
+	flag_deleteLeaf       = app.Flag("delete-dangling", "Delete dangling images").Default("false").Bool()
+	flag_deleteDangling   = app.Flag("delete-leaf", "Delete leaf images").Default("false").Bool()
+	flag_danglingDuration = app.Flag("dangling-duration", "How far into the past to protect dangling images").Short('d').Default("1h").Duration()
 	docker                *client.Client
 )
 
 func main() {
-	kingpin.CommandLine.HelpFlag.Short('h')
-	kingpin.Version(Version)
-	kingpin.Parse()
+	// Stderr is for ERRORS!
+	app.Writer(os.Stdout)
+	log.SetOutput(os.Stdout)
+
+	app.HelpFlag.Short('h')
+	app.Author("Christian Höltje")
+	app.Version(Version)
+	app.Parse(os.Args[1:])
 
 	initClient()
 	cleanLeafImages()
