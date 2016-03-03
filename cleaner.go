@@ -32,18 +32,19 @@ func initClient() {
 	if os.Getenv("DOCKER_HOST") == "" {
 		err := os.Setenv("DOCKER_HOST", "unix:///var/run/docker.sock")
 		if err != nil {
-			log.Fatalf("error setting default DOCKER_HOST: %s", err)
+			log.Fatalf("Error setting default DOCKER_HOST: %s", err)
 		}
 	}
 
 	new_client, err := client.NewEnvClient()
 	if err != nil {
-		log.Fatalf("error creating docker client: %s", err)
+		log.Fatalf("Error creating docker client: %s", err)
 	}
 	docker = new_client
 }
 
 func cleanLeafImages() {
+	log.Printf("Scanning leaf images...")
 	excluded := map[string]struct{}{}
 
 	if len(flag_exclude) > 0 {
@@ -54,12 +55,12 @@ func cleanLeafImages() {
 
 	leafImages, err := docker.ImageList(types.ImageListOptions{})
 	if err != nil {
-		log.Fatalf("error getting docker images: %s", err)
+		log.Fatalf("Error getting docker images: %s", err)
 	}
 
 	allImages, err := docker.ImageList(types.ImageListOptions{All: true})
 	if err != nil {
-		log.Fatalf("error getting all docker images: %s", err)
+		log.Fatalf("Error getting all docker images: %s", err)
 	}
 
 	imageTree := make(map[string]types.Image, len(allImages))
@@ -69,7 +70,7 @@ func cleanLeafImages() {
 
 	containers, err := docker.ContainerList(types.ContainerListOptions{All: true})
 	if err != nil {
-		log.Fatalf("error getting docker containers: %s", err)
+		log.Fatalf("Error getting docker containers: %s", err)
 	}
 
 	imagesToSkip := make(map[string]bool)
@@ -77,7 +78,7 @@ func cleanLeafImages() {
 	for _, container := range containers {
 		inspected, err := docker.ContainerInspect(container.ID)
 		if err != nil {
-			log.Printf("error getting container info for %s: %s", container.ID, err)
+			log.Printf("Error getting container info for %s: %s", container.ID, err)
 			continue
 		}
 
@@ -99,7 +100,7 @@ func cleanLeafImages() {
 
 	for _, image := range leafImages {
 		if _, ok := imagesToSkip[image.ID]; !ok {
-			nukeImage(image)
+			nukeImage("leaf", image)
 		}
 	}
 }
@@ -111,22 +112,22 @@ func cleanDanglingImages() {
 
 	danglingImages, err := docker.ImageList(types.ImageListOptions{Filters: danglingFilter})
 	if err != nil {
-		log.Fatalf("error getting dangling docker images: %s", err)
+		log.Fatalf("Error getting dangling docker images: %s", err)
 	}
 
 	for _, image := range danglingImages {
 		created := time.Unix(image.Created, 0)
 		if created.Add(flag_danglingDuration).Before(time.Now()) {
-			nukeImage(image)
+			nukeImage("dangling", image)
 		}
 	}
 }
 
-func nukeImage(image types.Image) {
+func nukeImage(kind string, image types.Image) {
 	if flag_dryRun {
-		log.Printf("Would have deleted image %s: %s", image.ID, strings.Join(image.RepoTags, ","))
+		log.Printf("Would have deleted %s image %s: %s", kind, image.ID, strings.Join(image.RepoTags, ","))
 	} else {
-		log.Printf("Deleting leaf image %s: %s", image.ID, strings.Join(image.RepoTags, ","))
+		log.Printf("Deleting %s image %s: %s", kind, image.ID, strings.Join(image.RepoTags, ","))
 
 		var imagesToNuke []string
 		if len(image.RepoTags) <= 1 {
@@ -137,7 +138,7 @@ func nukeImage(image types.Image) {
 		for _, imageIdOrTag := range imagesToNuke {
 			_, err := docker.ImageRemove(types.ImageRemoveOptions{ImageID: imageIdOrTag, PruneChildren: true})
 			if err != nil {
-				log.Printf("error while removing image %s: %s", imageIdOrTag, err)
+				log.Printf("Error while removing %s image %s: %s", kind, imageIdOrTag, err)
 			}
 		}
 	}
