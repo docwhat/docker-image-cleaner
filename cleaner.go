@@ -14,14 +14,16 @@ import (
 )
 
 var (
-	Version               = "3.0.0"
-	app                   = kingpin.New("docker-image-cleaner", "Clean up docker images that seem safe to remove.")
-	flag_excludes         = app.Flag("exclude", "Leaf images to exclude specified by image:tag").Short('x').PlaceHolder("IMAGE:TAG").Strings()
-	flag_deleteLeaf       = app.Flag("delete-dangling", "Delete dangling images").Default("false").Bool()
-	flag_deleteDangling   = app.Flag("delete-leaf", "Delete leaf images").Default("false").Bool()
-	flag_danglingDuration = app.Flag("dangling-duration", "How far into the past to protect dangling images").Short('d').Default("1h").Duration()
-	// TODO: Use duration for all removals.
-	docker *client.Client
+	Version             = "3.0.0"
+	app                 = kingpin.New("docker-image-cleaner", "Clean up docker images that seem safe to remove.")
+	flag_excludes       = app.Flag("exclude", "Leaf images to exclude specified by image:tag").Short('x').PlaceHolder("IMAGE:TAG").Strings()
+	flag_deleteLeaf     = app.Flag("delete-dangling", "Delete dangling images").Default("false").Bool()
+	flag_deleteDangling = app.Flag("delete-leaf", "Delete leaf images").Default("false").Bool()
+	flag_safetyDuration = app.Flag("safety-duration", "Don't delete any images created in the last DUR time").Short('d').PlaceHolder("DUR").Default("1h").Duration()
+	now                 = time.Now()
+
+	docker      *client.Client
+	imageLookup map[string]types.Image
 )
 
 func main() {
@@ -52,6 +54,16 @@ func initClient() {
 		log.Fatalf("Error creating docker client: %s", err)
 	}
 	docker = new_client
+
+	allImages, err := docker.ImageList(types.ImageListOptions{All: true})
+	if err != nil {
+		log.Fatalf("Error getting all docker images: %s", err)
+	}
+
+	imageLookup = make(map[string]types.Image, len(allImages))
+	for _, image := range allImages {
+		imageLookup[image.ID] = image
+	}
 }
 
 func cleanLeafImages() {
@@ -65,16 +77,6 @@ func cleanLeafImages() {
 	leafImages, err := docker.ImageList(types.ImageListOptions{})
 	if err != nil {
 		log.Fatalf("Error getting docker images: %s", err)
-	}
-
-	allImages, err := docker.ImageList(types.ImageListOptions{All: true})
-	if err != nil {
-		log.Fatalf("Error getting all docker images: %s", err)
-	}
-
-	imageTree := make(map[string]types.Image, len(allImages))
-	for _, image := range allImages {
-		imageTree[image.ID] = image
 	}
 
 	containers, err := docker.ContainerList(types.ContainerListOptions{All: true})
@@ -94,7 +96,7 @@ func cleanLeafImages() {
 
 		imagesToSkip[inspected.Image] = true
 
-		for parent := imageTree[inspected.Image].ParentID; len(parent) != 0; parent = imageTree[parent].ParentID {
+		for parent := imageLookup[inspected.Image].ParentID; len(parent) != 0; parent = imageLookup[parent].ParentID {
 			imagesToSkip[parent] = true
 			// TODO: Add message for why this is skipped.
 		}
@@ -106,8 +108,8 @@ func cleanLeafImages() {
 			continue
 		}
 
-		for parentId := image.ParentID; len(parentId) != 0; parentId = imageTree[parentId].ParentID {
-			image := imageTree[parentId]
+		for parentId := image.ParentID; len(parentId) != 0; parentId = imageLookup[parentId].ParentID {
+			image := imageLookup[parentId]
 			if len(image.RepoTags) == 1 && image.RepoTags[0] == "<none>:<none>" {
 				continue
 			}
@@ -136,6 +138,8 @@ func cleanLeafImages() {
 		}
 	}
 
+	pruneUnsafeImages(imagesToSkip, leafImages)
+
 	for _, image := range leafImages {
 		if imagesToSkip[image.ID] {
 			continue
@@ -147,7 +151,8 @@ func cleanLeafImages() {
 
 func cleanDanglingImages() {
 	log.Printf("Scanning dangling images...")
-	now := time.Now()
+
+	imagesToSkip := make(map[string]bool)
 
 	danglingFilter := filters.NewArgs()
 	danglingFilter.Add("dangling", "true")
@@ -159,12 +164,26 @@ func cleanDanglingImages() {
 
 	// TODO: Verify that dangling images aren't used by containers.
 
+	pruneUnsafeImages(imagesToSkip, danglingImages)
+
 	for _, image := range danglingImages {
+		if imagesToSkip[image.ID] {
+			continue
+		}
+
+		nukeImage("dangling", image, *flag_deleteDangling)
+	}
+}
+
+func pruneUnsafeImages(skipMap map[string]bool, images []types.Image) {
+
+	for _, image := range images {
 		created := time.Unix(image.Created, 0)
-		if created.Add(*flag_danglingDuration).Before(now) {
-			nukeImage("dangling", image, *flag_deleteDangling)
-		} else {
-			log.Printf("Skipping recent dangling image from %s ago: %s", (now.Sub(created).String()), image.ID)
+		if created.Add(*flag_safetyDuration).After(now) {
+			if !skipMap[image.ID] {
+				log.Printf("Skipping recent image %s: only %s old", image.ID, now.Sub(created))
+				skipMap[image.ID] = true
+			}
 		}
 	}
 }
