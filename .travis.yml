@@ -1,7 +1,7 @@
 language: go
 go:
-- 1.4
 - 1.5
+- 1.6
 - tip
 deploy:
   provider: releases
@@ -12,4 +12,4 @@ deploy:
   on:
     repo: docwhat/docker-image-cleaner
     tags: true
-    go: tip
+    go: 1.6
