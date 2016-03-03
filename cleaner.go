@@ -20,7 +20,8 @@ var (
 	flag_deleteLeaf       = app.Flag("delete-dangling", "Delete dangling images").Default("false").Bool()
 	flag_deleteDangling   = app.Flag("delete-leaf", "Delete leaf images").Default("false").Bool()
 	flag_danglingDuration = app.Flag("dangling-duration", "How far into the past to protect dangling images").Short('d').Default("1h").Duration()
-	docker                *client.Client
+	// TODO: Use duration for all removals.
+	docker *client.Client
 )
 
 func main() {
@@ -95,6 +96,7 @@ func cleanLeafImages() {
 
 		for parent := imageTree[inspected.Image].ParentID; len(parent) != 0; parent = imageTree[parent].ParentID {
 			imagesToSkip[parent] = true
+			// TODO: Add message for why this is skipped.
 		}
 	}
 
@@ -104,14 +106,19 @@ func cleanLeafImages() {
 			continue
 		}
 
-		var topParentId string
 		for parentId := image.ParentID; len(parentId) != 0; parentId = imageTree[parentId].ParentID {
-			topParentId = parentId
-		}
+			image := imageTree[parentId]
+			if len(image.RepoTags) == 1 && image.RepoTags[0] == "<none>:<none>" {
+				continue
+			}
+			if len(image.RepoDigests) == 1 && image.RepoDigests[0] == "<none>@<none>" {
+				continue
+			}
 
-		if len(topParentId) != 0 && !imagesToSkip[topParentId] {
-			imagesToSkip[topParentId] = true
-			log.Printf("Skipping top parent image %s: %s", topParentId, strings.Join(imageTree[topParentId].RepoTags, ","))
+			if !imagesToSkip[parentId] {
+				imagesToSkip[parentId] = true
+				log.Printf("Skipping tagged parent image %s: %s", parentId, strings.Join(image.RepoTags, ","))
+			}
 		}
 	}
 
@@ -149,6 +156,8 @@ func cleanDanglingImages() {
 	if err != nil {
 		log.Fatalf("Error getting dangling docker images: %s", err)
 	}
+
+	// TODO: Verify that dangling images aren't used by containers.
 
 	for _, image := range danglingImages {
 		created := time.Unix(image.Created, 0)
