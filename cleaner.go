@@ -80,7 +80,7 @@ func cleanLeafImages() {
 		log.Fatalf("Error getting docker images: %s", err)
 	}
 
-	pruneContainerImages(imagesToSkip)
+	pruneContainerImages()
 
 	// Find images that are "root" images.
 	for _, image := range leafImages {
@@ -104,8 +104,8 @@ func cleanLeafImages() {
 		}
 	}
 
-	pruneExcludedImages(imagesToSkip, leafImages)
-	pruneUnsafeImages(imagesToSkip, leafImages)
+	pruneExcludedImages(leafImages)
+	pruneUnsafeImages(leafImages)
 
 	for _, image := range leafImages {
 		if imagesToSkip[image.ID] {
@@ -125,8 +125,8 @@ func cleanDanglingImages() {
 		log.Fatalf("Error getting dangling docker images: %s", err)
 	}
 
-	pruneContainerImages(imagesToSkip)
-	pruneUnsafeImages(imagesToSkip, danglingImages)
+	pruneContainerImages()
+	pruneUnsafeImages(danglingImages)
 
 	for _, image := range danglingImages {
 		if imagesToSkip[image.ID] {
@@ -137,7 +137,7 @@ func cleanDanglingImages() {
 	}
 }
 
-func pruneContainerImages(skipMap map[string]bool) {
+func pruneContainerImages() {
 	containers, err := docker.ContainerList(types.ContainerListOptions{All: true})
 	if err != nil {
 		log.Fatalf("Error getting docker containers: %s", err)
@@ -152,15 +152,15 @@ func pruneContainerImages(skipMap map[string]bool) {
 		}
 
 		for parent := inspected.Image; len(parent) != 0; parent = imageLookup[parent].ParentID {
-			if !skipMap[parent] {
-				skipMap[parent] = true
+			if !imagesToSkip[parent] {
+				imagesToSkip[parent] = true
 				log.Printf("Skipping in use container image %s: %s", shortImageDigest(parent), strings.Join(imageLookup[parent].RepoTags, ","))
 			}
 		}
 	}
 }
 
-func pruneExcludedImages(skipMap map[string]bool, images []types.Image) {
+func pruneExcludedImages(images []types.Image) {
 	excluded := map[string]struct{}{}
 
 	for _, i := range *flag_excludes {
@@ -168,26 +168,26 @@ func pruneExcludedImages(skipMap map[string]bool, images []types.Image) {
 	}
 
 	for _, image := range images {
-		if skipMap[image.ID] {
+		if imagesToSkip[image.ID] {
 			continue
 		}
 
 		for _, tag := range image.RepoTags {
 			if _, ok := excluded[tag]; ok {
 				log.Printf("Skipping excluded image %s: %s", shortImageDigest(image.ID), strings.Join(image.RepoTags, ","))
-				skipMap[image.ID] = true
+				imagesToSkip[image.ID] = true
 			}
 		}
 	}
 }
 
-func pruneUnsafeImages(skipMap map[string]bool, images []types.Image) {
+func pruneUnsafeImages(images []types.Image) {
 	for _, image := range images {
 		created := time.Unix(image.Created, 0)
 		if created.Add(*flag_safetyDuration).After(now) {
-			if !skipMap[image.ID] {
+			if !imagesToSkip[image.ID] {
 				log.Printf("Skipping recent image %s: only %s old", shortImageDigest(image.ID), now.Sub(created))
-				skipMap[image.ID] = true
+				imagesToSkip[image.ID] = true
 			}
 		}
 	}
