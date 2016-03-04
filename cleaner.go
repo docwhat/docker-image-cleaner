@@ -20,7 +20,7 @@ var (
 	flag_deleteLeaf     = app.Flag("delete-dangling", "Delete dangling images").Default("false").Bool()
 	flag_deleteDangling = app.Flag("delete-leaf", "Delete leaf images").Default("false").Bool()
 	flag_safetyDuration = app.Flag("safety-duration", "Don't delete any images created in the last DUR time").Short('d').PlaceHolder("DUR").Default("1h").Duration()
-	now                 = time.Now()
+	now                 = time.Unix(time.Now().Unix(), 0) // Now without sub-seconds.
 	imagesToSkip        = make(map[string]bool)
 
 	docker      *client.Client
@@ -74,6 +74,10 @@ func asSet(elements []string) map[string]struct{} {
 		s[e] = present
 	}
 	return s
+}
+
+func ageOf(image types.Image) time.Duration {
+	return now.Sub(time.Unix(image.Created, 0))
 }
 
 func shortImageDigest(id string) string {
@@ -188,10 +192,10 @@ func pruneExcludedImages(images []types.Image) {
 
 func pruneUnsafeImages(images []types.Image) {
 	for _, image := range images {
-		created := time.Unix(image.Created, 0)
-		if created.Add(*flag_safetyDuration).After(now) {
+		age := ageOf(image)
+		if age < *flag_safetyDuration {
 			if !imagesToSkip[image.ID] {
-				log.Printf("Skipping recent image %s: only %s old", shortImageDigest(image.ID), now.Sub(created))
+				log.Printf("Skipping recent image %s: only %s old", shortImageDigest(image.ID), age)
 				imagesToSkip[image.ID] = true
 			}
 		}
