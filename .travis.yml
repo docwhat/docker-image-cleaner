@@ -23,6 +23,10 @@ before_install:
   - go version
   - go env
 
+notifications:
+  email:
+    on_success: never
+    on_failure: always
 
 install:
   - "go get -t -v ./..."
