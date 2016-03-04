@@ -67,6 +67,15 @@ func initClient() {
 	}
 }
 
+func asSet(elements []string) map[string]struct{} {
+	s := make(map[string]struct{}, len(elements))
+	present := struct{}{}
+	for _, e := range elements {
+		s[e] = present
+	}
+	return s
+}
+
 func shortImageDigest(id string) string {
 	if strings.HasPrefix(id, "sha256:") {
 		return id[7:14]
@@ -161,11 +170,7 @@ func pruneContainerImages() {
 }
 
 func pruneExcludedImages(images []types.Image) {
-	excluded := map[string]struct{}{}
-
-	for _, i := range *flag_excludes {
-		excluded[i] = struct{}{}
-	}
+	excluded := asSet(*flag_excludes)
 
 	for _, image := range images {
 		if imagesToSkip[image.ID] {
