@@ -41,4 +41,3 @@ deploy:
   on:
     repo: docwhat/docker-image-cleaner
     tags: true
-    go: 1.6
