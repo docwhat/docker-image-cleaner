@@ -1,5 +1,6 @@
 sudo: false
 language: go
+go: 1.6
 
 env:
   - "GIMME_OS=linux GIMME_ARCH=386"
@@ -17,6 +18,7 @@ before_install:
   - chmod u+x gimme
   - unset GOROOT GOTOOLDIR
   - eval "$(./gimme 1.6)"
+  - gimme version
   - go version
   - go env
 
