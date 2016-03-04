@@ -13,9 +13,19 @@ This tool honors [semver](http://semver.org) versioning.
 Usage
 -----
 
-Add `-dry-run` to the end if you want to see what is going to be deleted.
+    usage: docker-image-cleaner [<flags>]
 
-If you want to keep some images, use `-exclude image:tag[,image:tag]` flag.
+    Clean up docker images that seem safe to remove.
+
+    Flags:
+      -h, --help                   Show context-sensitive help (also try --help-long
+                                   and --help-man).
+      -x, --exclude=IMAGE:TAG ...  Leaf images to exclude specified by image:tag
+          --delete-dangling        Delete dangling images
+          --delete-leaf            Delete leaf images
+      -d, --safety-duration=DUR    Don't delete any images created in the last DUR
+                                   time
+          --version                Show application version.
 
 It uses the normal Docker environment variables, so if `docker info` works,
 then the cleaner should work.
