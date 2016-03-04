@@ -21,6 +21,7 @@ var (
 	flag_deleteDangling = app.Flag("delete-leaf", "Delete leaf images").Default("false").Bool()
 	flag_safetyDuration = app.Flag("safety-duration", "Don't delete any images created in the last DUR time").Short('d').PlaceHolder("DUR").Default("1h").Duration()
 	now                 = time.Now()
+	imagesToSkip        = make(map[string]bool)
 
 	docker      *client.Client
 	imageLookup map[string]types.Image
@@ -79,28 +80,7 @@ func cleanLeafImages() {
 		log.Fatalf("Error getting docker images: %s", err)
 	}
 
-	containers, err := docker.ContainerList(types.ContainerListOptions{All: true})
-	if err != nil {
-		log.Fatalf("Error getting docker containers: %s", err)
-	}
-
-	imagesToSkip := make(map[string]bool)
-
-	// Find images belonging to containers.
-	for _, container := range containers {
-		inspected, err := docker.ContainerInspect(container.ID)
-		if err != nil {
-			log.Printf("Error getting container info for %s: %s", container.ID, err)
-			continue
-		}
-
-		imagesToSkip[inspected.Image] = true
-
-		for parent := imageLookup[inspected.Image].ParentID; len(parent) != 0; parent = imageLookup[parent].ParentID {
-			imagesToSkip[parent] = true
-			// TODO: Add message for why this is skipped.
-		}
-	}
+	pruneContainerImages(imagesToSkip)
 
 	// Find images that are "root" images.
 	for _, image := range leafImages {
@@ -137,8 +117,6 @@ func cleanLeafImages() {
 }
 
 func cleanDanglingImages() {
-	imagesToSkip := make(map[string]bool)
-
 	danglingFilter := filters.NewArgs()
 	danglingFilter.Add("dangling", "true")
 
@@ -147,8 +125,7 @@ func cleanDanglingImages() {
 		log.Fatalf("Error getting dangling docker images: %s", err)
 	}
 
-	// TODO: Verify that dangling images aren't used by containers.
-
+	pruneContainerImages(imagesToSkip)
 	pruneUnsafeImages(imagesToSkip, danglingImages)
 
 	for _, image := range danglingImages {
@@ -157,6 +134,29 @@ func cleanDanglingImages() {
 		}
 
 		nukeImage("dangling", image, *flag_deleteDangling)
+	}
+}
+
+func pruneContainerImages(skipMap map[string]bool) {
+	containers, err := docker.ContainerList(types.ContainerListOptions{All: true})
+	if err != nil {
+		log.Fatalf("Error getting docker containers: %s", err)
+	}
+
+	// Find images belonging to containers.
+	for _, container := range containers {
+		inspected, err := docker.ContainerInspect(container.ID)
+		if err != nil {
+			log.Printf("Error getting container info for %s: %s", container.ID, err)
+			continue
+		}
+
+		for parent := inspected.Image; len(parent) != 0; parent = imageLookup[parent].ParentID {
+			if !skipMap[parent] {
+				skipMap[parent] = true
+				log.Printf("Skipping in use container image %s: %s", shortImageDigest(parent), strings.Join(imageLookup[parent].RepoTags, ","))
+			}
+		}
 	}
 }
 
