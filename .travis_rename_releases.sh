@@ -3,8 +3,6 @@
 # Original version was from:
 # https://github.com/taskcluster/slugid-go/blob/master/.travis_rename_releases.sh
 
-set -euxo pipefail
-
 binary='docker-image-cleaner'
 
 # The deploy is called per arch and os combination - so we only release one file here.
