@@ -23,8 +23,8 @@ var (
 	now                 = time.Unix(time.Now().Unix(), 0) // Now without sub-seconds.
 	imagesToSkip        = make(map[string]bool)
 
-	docker      *client.Client
-	imageLookup map[string]types.Image
+	docker     *client.Client
+	imagesById map[string]types.Image
 )
 
 func main() {
@@ -61,9 +61,9 @@ func initClient() {
 		log.Fatalf("Error getting all docker images: %s", err)
 	}
 
-	imageLookup = make(map[string]types.Image, len(allImages))
+	imagesById = make(map[string]types.Image, len(allImages))
 	for _, image := range allImages {
-		imageLookup[image.ID] = image
+		imagesById[image.ID] = image
 	}
 }
 
@@ -101,8 +101,8 @@ func cleanLeafImages() {
 			continue
 		}
 
-		for parentId := image.ParentID; len(parentId) != 0; parentId = imageLookup[parentId].ParentID {
-			image := imageLookup[parentId]
+		for parentId := image.ParentID; len(parentId) != 0; parentId = imagesById[parentId].ParentID {
+			image := imagesById[parentId]
 			if len(image.RepoTags) == 1 && image.RepoTags[0] == "<none>:<none>" {
 				continue
 			}
@@ -164,10 +164,10 @@ func pruneContainerImages() {
 			continue
 		}
 
-		for parent := inspected.Image; len(parent) != 0; parent = imageLookup[parent].ParentID {
+		for parent := inspected.Image; len(parent) != 0; parent = imagesById[parent].ParentID {
 			if !imagesToSkip[parent] {
 				imagesToSkip[parent] = true
-				log.Printf("Skipping in use container image %s: %s", shortImageDigest(parent), strings.Join(imageLookup[parent].RepoTags, ","))
+				log.Printf("Skipping in use container image %s: %s", shortImageDigest(parent), strings.Join(imagesById[parent].RepoTags, ","))
 			}
 		}
 	}
