@@ -17,8 +17,8 @@ var (
 	Version             = "4.0.2"
 	app                 = kingpin.New("docker-image-cleaner", "Clean up docker images that seem safe to remove.")
 	flag_excludes       = app.Flag("exclude", "Leaf images to exclude specified by image:tag").Short('x').PlaceHolder("IMAGE:TAG").Strings()
-	flag_deleteLeaf     = app.Flag("delete-dangling", "Delete dangling images").Default("false").Bool()
-	flag_deleteDangling = app.Flag("delete-leaf", "Delete leaf images").Default("false").Bool()
+	flag_deleteDangling = app.Flag("delete-dangling", "Delete dangling images").Default("false").Bool()
+	flag_deleteLeaf     = app.Flag("delete-leaf", "Delete leaf images").Default("false").Bool()
 	flag_safetyDuration = app.Flag("safety-duration", "Don't delete any images created in the last DUR time").Short('d').PlaceHolder("DUR").Default("1h").Duration()
 	now                 = time.Unix(time.Now().Unix(), 0) // Now without sub-seconds.
 	imagesToSkip        = make(map[string]bool)
