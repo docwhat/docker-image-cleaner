@@ -26,3 +26,4 @@ _testmain.go
 # My binaries
 cleaner
 docker-image-cleaner
+/vendor/

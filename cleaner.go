@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"gopkg.in/alecthomas/kingpin.v2"
+	"github.com/alecthomas/kingpin"
 
 	"github.com/docker/engine-api/client"
 	"github.com/docker/engine-api/types"

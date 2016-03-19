@@ -1,0 +1,36 @@
+hash: 415af62fac10041e215412890b21c2153881bb193efbf6e0b6acd97b99da3870
+updated: 2016-03-19T03:02:11.379617082-04:00
+imports:
+- name: github.com/alecthomas/kingpin
+  version: 8cccfa8eb2e3183254457fb1749b2667fbc364c7
+- name: github.com/alecthomas/template
+  version: 14fd436dd20c3cc65242a9f396b61bfc8a3926fc
+  subpackages:
+  - parse
+- name: github.com/alecthomas/units
+  version: 2efee857e7cfd4f3d0138cc3cbb1b4966962b93a
+- name: github.com/docker/engine-api
+  version: 9fce4cd3fa3287f962842158509b0c438365397a
+  subpackages:
+  - client
+  - types
+  - types/filters
+  - types/container
+  - types/network
+  - types/registry
+  - types/time
+  - types/blkiodev
+  - types/strslice
+- name: github.com/docker/go-connections
+  version: f549a9393d05688dff0992ef3efd8bbe6c628aeb
+  subpackages:
+  - nat
+- name: github.com/docker/go-units
+  version: 5d2041e26a699eaca682e2ea41c8f891e1060444
+- name: golang.org/x/net
+  version: 35b06af0720201bc2f326773a80767387544f8c4
+  subpackages:
+  - context
+- name: gopkg.in/alecthomas/kingpin.v2
+  version: 8cccfa8eb2e3183254457fb1749b2667fbc364c7
+devImports: []

@@ -1,0 +1,13 @@
+package: docwhat.org/docker-image-cleaner
+import:
+- package: github.com/docker/engine-api
+  version: 0.2.3
+  subpackages:
+  - client
+  - types
+  - types/filters
+- package: golang.org/x/net
+  subpackages:
+  - context
+- package: github.com/alecthomas/kingpin
+  version: ^2.1.11
