@@ -14,7 +14,7 @@ import (
 )
 
 var (
-	Version             = "4.0.3"
+	Version             = "4.0.4"
 	app                 = kingpin.New("docker-image-cleaner", "Clean up docker images that seem safe to remove.")
 	flag_excludes       = app.Flag("exclude", "Leaf images to exclude specified by image:tag").Short('x').PlaceHolder("IMAGE:TAG").Strings()
 	flag_deleteDangling = app.Flag("delete-dangling", "Delete dangling images").Default("false").Bool()
