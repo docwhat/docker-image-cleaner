@@ -6,6 +6,8 @@ import (
 	"strings"
 	"time"
 
+	"golang.org/x/net/context"
+
 	"github.com/alecthomas/kingpin"
 
 	"github.com/docker/engine-api/client"
@@ -56,7 +58,7 @@ func initClient() {
 	}
 	docker = new_client
 
-	allImages, err := docker.ImageList(types.ImageListOptions{All: true})
+	allImages, err := docker.ImageList(context.Background(), types.ImageListOptions{All: true})
 	if err != nil {
 		log.Fatalf("Error getting all docker images: %s", err)
 	}
@@ -88,7 +90,7 @@ func shortImageDigest(id string) string {
 }
 
 func cleanLeafImages() {
-	leafImages, err := docker.ImageList(types.ImageListOptions{})
+	leafImages, err := docker.ImageList(context.Background(), types.ImageListOptions{})
 	if err != nil {
 		log.Fatalf("Error getting docker images: %s", err)
 	}
@@ -133,7 +135,7 @@ func cleanDanglingImages() {
 	danglingFilter := filters.NewArgs()
 	danglingFilter.Add("dangling", "true")
 
-	danglingImages, err := docker.ImageList(types.ImageListOptions{Filters: danglingFilter})
+	danglingImages, err := docker.ImageList(context.Background(), types.ImageListOptions{Filters: danglingFilter})
 	if err != nil {
 		log.Fatalf("Error getting dangling docker images: %s", err)
 	}
@@ -151,14 +153,14 @@ func cleanDanglingImages() {
 }
 
 func pruneContainerImages() {
-	containers, err := docker.ContainerList(types.ContainerListOptions{All: true})
+	containers, err := docker.ContainerList(context.Background(), types.ContainerListOptions{All: true})
 	if err != nil {
 		log.Fatalf("Error getting docker containers: %s", err)
 	}
 
 	// Find images belonging to containers.
 	for _, container := range containers {
-		inspected, err := docker.ContainerInspect(container.ID)
+		inspected, err := docker.ContainerInspect(context.Background(), container.ID)
 		if err != nil {
 			log.Printf("Error getting container info for %s: %s", container.ID, err)
 			continue
@@ -213,7 +215,7 @@ func nukeImage(kind string, image types.Image, really_delete bool) {
 			imagesToNuke = image.RepoTags
 		}
 		for _, imageIdOrTag := range imagesToNuke {
-			_, err := docker.ImageRemove(types.ImageRemoveOptions{ImageID: imageIdOrTag, PruneChildren: true})
+			_, err := docker.ImageRemove(context.Background(), types.ImageRemoveOptions{ImageID: imageIdOrTag, PruneChildren: true})
 			if err != nil {
 				log.Printf("Error while removing %s image %s: %s", kind, shortImageDigest(imageIdOrTag), err)
 			}

@@ -1,7 +1,7 @@
 package: docwhat.org/docker-image-cleaner
 import:
 - package: github.com/docker/engine-api
-  version: 0.2.3
+  version: 0a52c8c25292da98472246bbf1a69f71156e83cd
   subpackages:
   - client
   - types

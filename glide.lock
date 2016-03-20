@@ -1,5 +1,5 @@
-hash: 415af62fac10041e215412890b21c2153881bb193efbf6e0b6acd97b99da3870
-updated: 2016-03-19T03:02:11.379617082-04:00
+hash: d8be53875f1e4d291c68a0b31a00a4eb2a171d37efdad3b551d1aa41da7841a6
+updated: 2016-03-19T22:48:37.717652-04:00
 imports:
 - name: github.com/alecthomas/kingpin
   version: 8cccfa8eb2e3183254457fb1749b2667fbc364c7
@@ -10,11 +10,13 @@ imports:
 - name: github.com/alecthomas/units
   version: 2efee857e7cfd4f3d0138cc3cbb1b4966962b93a
 - name: github.com/docker/engine-api
-  version: 9fce4cd3fa3287f962842158509b0c438365397a
+  version: 0a52c8c25292da98472246bbf1a69f71156e83cd
   subpackages:
   - client
   - types
   - types/filters
+  - client/transport
+  - client/transport/cancellable
   - types/container
   - types/network
   - types/registry
@@ -24,13 +26,26 @@ imports:
 - name: github.com/docker/go-connections
   version: f549a9393d05688dff0992ef3efd8bbe6c628aeb
   subpackages:
+  - sockets
+  - tlsconfig
   - nat
 - name: github.com/docker/go-units
   version: 5d2041e26a699eaca682e2ea41c8f891e1060444
+- name: github.com/Microsoft/go-winio
+  version: 8f9387ea7efabb228a981b9c381142be7667967f
+- name: github.com/opencontainers/runc
+  version: 54a6e5600483b3712d3ee15d40781bac48d3de41
+  subpackages:
+  - libcontainer/user
+- name: github.com/Sirupsen/logrus
+  version: 4b6ea7319e214d98c938f12692336f7ca9348d6b
 - name: golang.org/x/net
   version: 35b06af0720201bc2f326773a80767387544f8c4
   subpackages:
   - context
-- name: gopkg.in/alecthomas/kingpin.v2
-  version: 8cccfa8eb2e3183254457fb1749b2667fbc364c7
+  - proxy
+- name: golang.org/x/sys
+  version: 9d4e42a20653790449273b3c85e67d6d8bae6e2e
+  subpackages:
+  - unix
 devImports: []
