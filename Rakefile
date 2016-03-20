@@ -10,47 +10,62 @@ task default: :build
 
 desc 'Clean things up'
 task :clean do
-  rm_rf 'vendor'
-  rm_rf 'build'
+  sh 'git clean -xfd'
 end
 
-desc 'Prepare the build environment'
-task :prep do
-  sh 'go get -v github.com/Masterminds/glide'
+desc 'Fetch all dependencies'
+task :setup do
+  sh 'go version'
+  sh 'go get -u github.com/Masterminds/glide github.com/golang/lint/golint'
   sh 'glide install'
+end
+
+desc 'Lint the code'
+task lint: %w( lint:vet lint:golint )
+
+namespace :lint do
+  task :vet do
+    sh "go tool vet #{GO_SOURCE}"
+  end
+
+  task :golint do
+    sh "golint #{GO_SOURCE}"
+  end
 end
 
 desc 'Test the code'
 task :test do
-  sh "go tool vet #{GO_SOURCE}"
+  sh 'go test -v'
 end
 
-desc 'Build this platform'
-task build: %w( prep test ) do
+desc 'Build for the native platform'
+task :build do
   sh 'go install -v'
 end
 
-task travis: %w( prep test build:all )
+def find_binary(name, os, arch)
+  gopath = ENV['GOPATH']
+  [
+    File.join(gopath, 'bin', "#{os}_#{arch}", name),
+    File.join(gopath, 'bin', "#{os}_#{arch}", "#{name}.exe"),
+    File.join(gopath, 'bin', name),
+    File.join(gopath, 'bin', "#{name}.exe")
+  ].select { |b| File.executable? b }.compact.first
+end
 
-def build(os, arch)
+def xbuild(os, arch)
   mkdir_p 'build'
   sh "env GOOS=#{os} GOARCH=#{arch} go install"
-  binary = [
-    "#{ENV['GOPATH']}/bin/#{os}_#{arch}/docker-image-cleaner",
-    "#{ENV['GOPATH']}/bin/#{os}_#{arch}/docker-image-cleaner.exe",
-    "#{ENV['GOPATH']}/bin/docker-image-cleaner",
-    "#{ENV['GOPATH']}/bin/docker-image-cleaner.exe"
-  ]
-    .select { |b| File.executable? b }
-    .compact
-    .first
+  binary = find_binary('docker-image-cleaner', os, arch)
   mv binary, "build/docker-image-cleaner-#{os}-#{arch}"
 end
 
+desc 'Build for all supported platforms'
+task xbuild: %w( build:lin64 build:mac64 build:win64 build:ppc64le )
+
 namespace :build do
-  task all: %w( build:lin64 build:mac64 build:win64 build:ppc64le )
-  task(:mac64) { build 'darwin', 'amd64' }
-  task(:lin64) { build 'linux', 'amd64' }
-  task(:win64) { build 'windows', 'amd64' }
-  task(:ppc64le) { build 'linux', 'ppc64le' }
+  task(:mac64)   { xbuild 'darwin',  'amd64' }
+  task(:lin64)   { xbuild 'linux',   'amd64' }
+  task(:win64)   { xbuild 'windows', 'amd64' }
+  task(:ppc64le) { xbuild 'linux',   'ppc64le' }
 end

@@ -11,11 +11,11 @@ before_install:
   - go version
 
 install:
-  - rake clean
-  - rake prep
+  - rake setup
 
 script:
-  - rake travis
+  - rake -j2 lint test
+  - rake -j2 xbuild
   - ls -alh build
 
 deploy:
