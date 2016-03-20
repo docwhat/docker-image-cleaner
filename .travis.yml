@@ -7,52 +7,26 @@ notifications:
     on_success: never
     on_failure: always
 
-env:
-#   - 'GIMME_OS=darwin GIMME_ARCH=amd64'
-#   # - 'GIMME_OS=windows GIMME_ARCH=386'
-#   # - 'GIMME_OS=windows GIMME_ARCH=amd64'
-#   # - 'GIMME_OS=linux GIMME_ARCH=386'
-  - 'GIMME_OS=linux GIMME_ARCH=amd64'
-#   # - 'GIMME_OS=linux GIMME_ARCH=ppc64'
-#   # - 'GIMME_OS=linux GIMME_ARCH=ppc64le'
-
-# # Parts stolen from:
-# # https://github.com/taskcluster/slugid-go/blob/master/.travis.yml
-# # workaround for travis-ci/gimme#25 to pick up latest version of gimme and run again
-# before_install:
-#   - 'curl -o gimme -sL https://raw.githubusercontent.com/travis-ci/gimme/master/gimme && chmod u+x gimme'
-#   - 'unset GOROOT GOTOOLDIR'
-#   - 'eval "$(./gimme 1.6)"'
-#   - 'gimme version'
-#   - 'go version'
-#   - 'go env'
-
-# install:
-#   - '(unset GIMME_OS && unset GIMME_ARCH && eval "(./gimme 1.6)" && go get -u -v github.com/Masterminds/glide && glide install)'
-
-# script:
-#   - 'go tool vet .'
-#   - 'go install -v'
-
 before_install:
-  - go get -u -v github.com/Masterminds/glide
+  - go version
 
 install:
-  - glide install
+  - rake clean
+  - rake prep
 
 script:
-  - go tool vet *.go
-  - go install -v
-
-before_deploy:
-  - 'source .travis_rename_releases.sh'
+  - rake travis
+  - ls -alh build
 
 deploy:
   provider: releases
   api_key:
     secure: K1M2yhS9Say7aGEYjhP3qY+GG08S7gX9CdBL8PAZUt1/Y9Mevyq/qI1y5MhDLhsBMyDYg7KgHQ9IIFGygSyCHzeRCJls276Spm3Cyv93Gd+zwQf34fX8qyvhPxQp4VMt/k0TY89W8ExTFUr713ZbgkSsF5d+u8maWW94WtYGfbL8G74sXWI7pp1owxiG2aY19ksgXoYV0lqI9Z8gdb+6AnXp6UiCLhw/j8w7fGmhL/wiKW0PlSm5Kd1uSmZV2RUxoqUlO8e6+1O2Zna3yfv8hAPJDlP69zvh5PRthmh73B+kH+qXqnTplP4SV6CnHVvee7/0DAtogzS0GD8tfiVv+Y2usBUWtVZbZgtutqwr3kRSiUQ1jH1cLe9xLZnV7wIUmUPz536iOEVCnvRtr9W0bUjy78unVUr+T5m6WTWFphswBeIOc+RnFSOTw/nu0U4/wlq6VSr0HkmVmJASu/ok1bWwuBDA7j5sNDE9wAPkZq82w7ir1n3oxYinw3x8eceGDUXQJauTn8hlEwEfe5jjjrs/Jx4rfiDqR2XnlQ+UZaNBb3yRKwIa6YbipzX8H1YBT3o/DdXW1DYF/7IUvqVitZWDCR2Udrfr2vVV6Bdh5zlL1j7lRsDOTKT3tGPjLVRkT1tRcGNgoX1g/muVwnj/7MDMvOUmsT0Vi1fiGfwzXOg=
   file:
-    - '${RELEASE_FILE}'
+    - build/docker-image-cleaner-darwin-amd64
+    - build/docker-image-cleaner-linux-amd64
+    - build/docker-image-cleaner-linux-ppc64le
+    - build/docker-image-cleaner-windows-amd64
   on:
     repo: 'docwhat/docker-image-cleaner'
     tags: true
