@@ -2,6 +2,8 @@
 release](https://img.shields.io/github/release/docwhat/docker-image-cleaner.svg)](https://github.com/docwhat/docker-image-cleaner/releases)
 [![Build
 Status](https://travis-ci.org/docwhat/docker-image-cleaner.svg?branch=master)](https://travis-ci.org/docwhat/docker-image-cleaner)
+[![GitHub
+issues](https://img.shields.io/github/issues/docwhat/docker-image-cleaner.svg)](https://github.com/docwhat/docker-image-cleaner/issues)
 
 Docker image cleaner
 ====================
@@ -39,8 +41,8 @@ then the cleaner should work.
 
 ### As a container
 
-I have made this available as
-[a container](https://hub.docker.com/r/docwhat/image-cleaner/) as well.
+I have made this available as [a
+container](https://hub.docker.com/r/docwhat/image-cleaner/) as well.
 
 ``` .sh
 $ docker run \
@@ -52,14 +54,14 @@ $ docker run \
 In addition to `:latest` it should also have all versions since 4.0.2
 
 Developers
-------------
+----------
 
 This project uses [Glide](https://glide.readthedocs.org/en/latest/) to vendor
-its dependencies.  This is needed because `engine-api` is such a fast moving
+its dependencies. This is needed because `engine-api` is such a fast moving
 target.
 
-This If you have [Ruby](https://www.ruby-lang.org/) installed, then you can
-just just run `rake setup` to install Glide and vendor its dependencies.
+If you have [Ruby](https://www.ruby-lang.org/) installed, then you can just run
+`rake setup` to install Glide and vendor its dependencies.
 
 If not, then you can run:
 
