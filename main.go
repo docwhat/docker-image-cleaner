@@ -1,9 +1,9 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"os"
-	"time"
 
 	"docwhat.org/docker-image-cleaner/client"
 
@@ -16,12 +16,21 @@ var (
 	flagDeleteDangling = kingpin.Flag("delete-dangling", "Delete dangling images").Default("false").Bool()
 	flagDeleteLeaf     = kingpin.Flag("delete-leaf", "Delete leaf images").Default("false").Bool()
 	flagSafetyDuration = kingpin.Flag("safety-duration", "Don't delete any images created in the last DUR time").Short('d').PlaceHolder("DUR").Default("1h").HintOptions("30m", "1h", "24h").Duration()
-	now                = time.Unix(time.Now().Unix(), 0) // Now without sub-seconds.
-	imagesToSkip       = make(map[string]bool)
+	// now                = time.Unix(time.Now().Unix(), 0) // Now without sub-seconds.
+	// imagesToSkip       = make(map[string]bool)
 
-	docker client.Interface
 	// imagesByID map[string]types.Image
 )
+
+type meta struct {
+	isDangling bool
+	isExcluded bool
+	isRunning  bool
+}
+
+func (m *meta) String() string {
+	return fmt.Sprintf("dangling: %t  excluded: %t  running: %t", m.isDangling, m.isExcluded, m.isRunning)
+}
 
 func main() {
 	// Stderr is for ERRORS!
@@ -34,8 +43,40 @@ func main() {
 	kingpin.Version(version)
 	kingpin.Parse()
 
-	docker = client.New()
-	// cleanLeafImages()
+	docker := client.New()
+
+	excluded := asSet(*flagExcludes)
+
+	// populate all images
+	allImages := docker.AllImages()
+	imagesByID := make(map[string]*meta, len(allImages))
+	for _, image := range allImages {
+		meta := &meta{}
+		for _, tag := range image.RepoTags {
+			if _, ok := excluded[tag]; ok {
+				meta.isExcluded = true
+				break
+			}
+		}
+		imagesByID[image.ID] = meta
+	}
+
+	// add dangling in formation
+	for _, image := range docker.DanglingImages() {
+		imagesByID[image.ID].isDangling = true
+	}
+
+	for id, m := range imagesByID {
+		fmt.Printf("NARF %s %s\n", id, m)
+	}
+	// for _, image := range docker.DanglingImages() {
+	//   fmt.Printf("D %s %s\n", image.ShortID(), image.IsDangling())
+	// }
+
+	// for _, image := range docker.AllImages() {
+	//   fmt.Printf("A %s %s\n", image.ShortID(), image.IsDangling())
+	// }
+	// // cleanLeafImages()
 	// cleanDanglingImages()
 }
 
@@ -64,14 +105,14 @@ func main() {
 //   }
 // }
 
-// func asSet(elements []string) map[string]struct{} {
-//   s := make(map[string]struct{}, len(elements))
-//   present := struct{}{}
-//   for _, e := range elements {
-//     s[e] = present
-//   }
-//   return s
-// }
+func asSet(elements []string) map[string]struct{} {
+	s := make(map[string]struct{}, len(elements))
+	present := struct{}{}
+	for _, e := range elements {
+		s[e] = present
+	}
+	return s
+}
 
 // func ageOf(image types.Image) time.Duration {
 //   return now.Sub(time.Unix(image.Created, 0))
@@ -127,24 +168,16 @@ func main() {
 // }
 
 // func cleanDanglingImages() {
-//   danglingFilter := filters.NewArgs()
-//   danglingFilter.Add("dangling", "true")
+// pruneContainerImages()
+// pruneUnsafeImages(danglingImages)
 
-//   danglingImages, err := docker.ImageList(context.Background(), types.ImageListOptions{Filters: danglingFilter})
-//   if err != nil {
-//     log.Fatalf("Error getting dangling docker images: %s", err)
+// for _, image := range danglingImages {
+//   if imagesToSkip[image.ID] {
+//     continue
 //   }
 
-//   pruneContainerImages()
-//   pruneUnsafeImages(danglingImages)
-
-//   for _, image := range danglingImages {
-//     if imagesToSkip[image.ID] {
-//       continue
-//     }
-
-//     nukeImage("dangling", image, *flagDeleteDangling)
-//   }
+//   nukeImage("dangling", image, *flagDeleteDangling)
+// }
 // }
 
 // func pruneContainerImages() {

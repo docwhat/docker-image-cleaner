@@ -15,9 +15,9 @@ import (
 
 // Interface for interacting with a docker client.
 type Interface interface {
-	AllImages() []image.Interface
-	DanglingImages() []image.Interface
-	TaggedOrphanImages() []image.Interface
+	AllImages() []image.Image
+	DanglingImages() []image.Image
+	TaggedOrphanImages() []image.Image
 }
 
 // A Client wrapping docker client.
@@ -48,7 +48,7 @@ func New() *Client {
 // AllImages returns all images in docker.
 //
 // This is the same as running `docker ps --all`
-func (c Client) AllImages() []image.Interface {
+func (c Client) AllImages() []image.Image {
 	options := types.ImageListOptions{All: true}
 	dockerImages, err := c.docker.ImageList(c.ctx, options)
 	if err != nil {
@@ -60,7 +60,7 @@ func (c Client) AllImages() []image.Interface {
 // DanglingImages returns all images with no parents that have no tags.
 //
 // This is the same as running `docker ps --filter dangling=true`
-func (c Client) DanglingImages() []image.Interface {
+func (c Client) DanglingImages() []image.Image {
 	options := types.ImageListOptions{Filters: c.danglingFilter()}
 
 	dockerImages, err := c.docker.ImageList(c.ctx, options)
@@ -73,7 +73,7 @@ func (c Client) DanglingImages() []image.Interface {
 // TaggedOrphanImages returns all images that have no parents but have tags.
 //
 // This is the same as running `docker ps`
-func (c Client) TaggedOrphanImages() []image.Interface {
+func (c Client) TaggedOrphanImages() []image.Image {
 	options := types.ImageListOptions{}
 
 	dockerImages, err := c.docker.ImageList(c.ctx, options)
