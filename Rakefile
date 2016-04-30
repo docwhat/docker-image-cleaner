@@ -1,9 +1,22 @@
-
 GO_SOURCE = Rake::FileList['**/*.go'].tap do |src|
-  src.exclude %r{^vendor/}
+  src.exclude(%r{^vendor/})
+  src.exclude(/_test.go$/)
   src.exclude do |f|
     `git ls-files '#{f}'`.empty?
   end
+end
+
+GO_TESTS = Rake::FileList['**/*_test.go'].tap do |src|
+  src.exclude(%r{^vendor/})
+  src.exclude do |f|
+    `git ls-files '#{f}'`.empty?
+  end
+end
+
+GO_PACKAGES = GO_SOURCE.map { |p| "./#{File.dirname(p)}" }.uniq
+
+def run(*array, &block)
+  sh(*array.flatten.map(&:to_s), &block)
 end
 
 task default: :build
@@ -25,22 +38,22 @@ task lint: %w( lint:vet lint:golint )
 
 namespace :lint do
   task :vet do
-    sh "go tool vet #{GO_SOURCE}"
+    run 'go', 'tool', 'vet', GO_SOURCE, GO_TESTS
   end
 
   task :golint do
-    sh "golint #{GO_SOURCE}"
+    GO_PACKAGES.each { |pkg| run 'golint', pkg }
   end
 end
 
 desc 'Test the code'
 task :test do
-  sh 'go test -v'
+  run 'go', 'test', '-v', GO_PACKAGES
 end
 
 desc 'Build for the native platform'
 task :build do
-  sh 'go install -v'
+  run %w(go install -v)
 end
 
 def find_binary(name, os, arch)
