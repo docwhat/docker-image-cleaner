@@ -48,7 +48,7 @@ end
 
 desc 'Test the code'
 task :test do
-  run 'go', 'test', '-v', GO_PACKAGES
+  run 'go', 'test', '-v', '-cover', GO_PACKAGES
 end
 
 desc 'Build for the native platform'
