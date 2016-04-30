@@ -13,6 +13,21 @@ import (
 	"github.com/docker/engine-api/types/filters"
 )
 
+// Interface for interacting with a docker client.
+type Interface interface {
+	AllImages() ([]image.Interface, error)
+	DanglingImages() ([]image.Interface, error)
+	TaggedOrphanImages() ([]image.Interface, error)
+}
+
+// A Client wrapping docker client.
+type Client struct {
+	Interface
+	docker *client.Client
+	ctx    context.Context
+}
+
+// Ensures we have DOCKER_HOST set.
 func init() {
 	if os.Getenv("DOCKER_HOST") == "" {
 		err := os.Setenv("DOCKER_HOST", "unix:///var/run/docker.sock")
@@ -22,17 +37,7 @@ func init() {
 	}
 }
 
-type Interface interface {
-	AllImages() ([]image.Interface, error)
-	DanglingImages() ([]image.Interface, error)
-	ParentlessImages() ([]image.Interface, error)
-}
-
-type Client struct {
-	docker *client.Client
-	ctx    context.Context
-}
-
+// New creates a Client struct.
 func New() *Client {
 	dockerClient, err := client.NewEnvClient()
 	if err != nil {
@@ -41,6 +46,9 @@ func New() *Client {
 	return &Client{docker: dockerClient, ctx: context.Background()}
 }
 
+// AllImages returns all images in docker.
+//
+// This is the same as running `docker ps --all`
 func (c Client) AllImages() []image.Interface {
 	options := types.ImageListOptions{All: true}
 	dockerImages, err := c.docker.ImageList(c.ctx, options)
@@ -50,6 +58,9 @@ func (c Client) AllImages() []image.Interface {
 	return image.NewList(dockerImages)
 }
 
+// DanglingImages returns all images with no parents that have no tags.
+//
+// This is the same as running `docker ps --filter dangling=true`
 func (c Client) DanglingImages() []image.Interface {
 	options := types.ImageListOptions{Filters: c.danglingFilter()}
 
@@ -60,7 +71,10 @@ func (c Client) DanglingImages() []image.Interface {
 	return image.NewList(dockerImages)
 }
 
-func (c Client) OrphanedImages() []image.Interface {
+// TaggedOrphanImages returns all images that have no parents but have tags.
+//
+// This is the same as running `docker ps`
+func (c Client) TaggedOrphanImages() []image.Interface {
 	options := types.ImageListOptions{}
 
 	dockerImages, err := c.docker.ImageList(c.ctx, options)
