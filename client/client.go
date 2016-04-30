@@ -15,15 +15,14 @@ import (
 
 // Interface for interacting with a docker client.
 type Interface interface {
-	AllImages() ([]image.Interface, error)
-	DanglingImages() ([]image.Interface, error)
-	TaggedOrphanImages() ([]image.Interface, error)
+	AllImages() []image.Interface
+	DanglingImages() []image.Interface
+	TaggedOrphanImages() []image.Interface
 }
 
 // A Client wrapping docker client.
 type Client struct {
-	Interface
-	docker *client.Client
+	docker client.APIClient
 	ctx    context.Context
 }
 
@@ -89,3 +88,6 @@ func (c Client) danglingFilter() filters.Args {
 	filter.Add("dangling", "true")
 	return filter
 }
+
+// Ensure that Client always implements Interface
+var _ Interface = &Client{}
