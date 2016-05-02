@@ -54,8 +54,9 @@ func (i *Image) HasTags() bool {
 		return false
 	case 1:
 		return i.RepoTags[0] != "<none>:<none>"
+	default:
+		return true
 	}
-	return true
 }
 
 // HasDigests returns true if any digests (other than `<none>@<none>`) are present.
@@ -65,8 +66,9 @@ func (i *Image) HasDigests() bool {
 		return false
 	case 1:
 		return i.RepoDigests[0] != "<none>@<none>"
+	default:
+		return true
 	}
-	return true
 }
 
 // AgeOf returns how long since the image was created.
