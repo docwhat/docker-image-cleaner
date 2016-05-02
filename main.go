@@ -17,11 +17,10 @@ import (
 
 var (
 	version            = "4.0.4"
-	app                = kingpin.New("docker-image-cleaner", "Clean up docker images that seem safe to remove.")
-	flagExcludes       = app.Flag("exclude", "Leaf images to exclude specified by image:tag").Short('x').PlaceHolder("IMAGE:TAG").Strings()
-	flagDeleteDangling = app.Flag("delete-dangling", "Delete dangling images").Default("false").Bool()
-	flagDeleteLeaf     = app.Flag("delete-leaf", "Delete leaf images").Default("false").Bool()
-	flagSafetyDuration = app.Flag("safety-duration", "Don't delete any images created in the last DUR time").Short('d').PlaceHolder("DUR").Default("1h").HintOptions("30m", "1h", "24h").Duration()
+	flagExcludes       = kingpin.Flag("exclude", "Leaf images to exclude specified by image:tag").Short('x').PlaceHolder("IMAGE:TAG").Strings()
+	flagDeleteDangling = kingpin.Flag("delete-dangling", "Delete dangling images").Default("false").Bool()
+	flagDeleteLeaf     = kingpin.Flag("delete-leaf", "Delete leaf images").Default("false").Bool()
+	flagSafetyDuration = kingpin.Flag("safety-duration", "Don't delete any images created in the last DUR time").Short('d').PlaceHolder("DUR").Default("1h").HintOptions("30m", "1h", "24h").Duration()
 	now                = time.Unix(time.Now().Unix(), 0) // Now without sub-seconds.
 	imagesToSkip       = make(map[string]bool)
 
@@ -31,13 +30,14 @@ var (
 
 func main() {
 	// Stderr is for ERRORS!
-	app.Writer(os.Stdout)
+	kingpin.CommandLine.Writer(os.Stdout)
 	log.SetOutput(os.Stdout)
 
-	app.HelpFlag.Short('h')
-	app.Author("Christian Höltje")
-	app.Version(version)
-	app.Parse(os.Args[1:])
+	kingpin.HelpFlag.Short('h')
+	kingpin.CommandLine.Help = "Clean up docker images that seem safe to remove."
+	kingpin.CommandLine.Author("Christian Höltje")
+	kingpin.Version(version)
+	kingpin.Parse()
 
 	initClient()
 	cleanLeafImages()
