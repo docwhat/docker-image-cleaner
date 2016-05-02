@@ -1,6 +1,7 @@
 package image
 
 import (
+	"fmt"
 	"strings"
 	"time"
 
@@ -42,12 +43,12 @@ func NewList(dockerImages []types.Image) []Image {
 }
 
 // IsOrphan returns true if the image has no parents.
-func (i Image) IsOrphan() bool {
+func (i *Image) IsOrphan() bool {
 	return "" == i.ParentID
 }
 
 // HasTags returns true if any tags (other than `<none>:<none>`) are present.
-func (i Image) HasTags() bool {
+func (i *Image) HasTags() bool {
 	switch len(i.RepoTags) {
 	case 0:
 		return false
@@ -58,7 +59,7 @@ func (i Image) HasTags() bool {
 }
 
 // HasDigests returns true if any digests (other than `<none>@<none>`) are present.
-func (i Image) HasDigests() bool {
+func (i *Image) HasDigests() bool {
 	switch len(i.RepoDigests) {
 	case 0:
 		return false
@@ -71,6 +72,14 @@ func (i Image) HasDigests() bool {
 // AgeOf returns how long since the image was created.
 func (i Image) AgeOf() time.Duration {
 	return now.Sub(time.Unix(i.Created, 0))
+}
+
+// Pretty print info about the image.
+func (i Image) String() string {
+	if len(i.RepoTags) > 0 {
+		return fmt.Sprintf("%s: %s", i.ShortID(), strings.Join(i.RepoTags, ", "))
+	}
+	return i.ShortID()
 }
 
 // ShortID provides a shortened form of the ID digest.

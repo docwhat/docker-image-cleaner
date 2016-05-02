@@ -4,10 +4,21 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"sort"
 
-	"docwhat.org/docker-image-cleaner/client"
+	client "docwhat.org/docker-image-cleaner/client"
+	image "docwhat.org/docker-image-cleaner/image"
 
 	"github.com/alecthomas/kingpin"
+)
+
+const (
+	// Keep -- the image will be kept.
+	Keep = iota
+	// DeleteDangling -- the image will be deleted as a dangling image.
+	DeleteDangling
+	// DeleteLeaf -- the image will be deleted as a leaf.
+	DeleteLeaf
 )
 
 var (
@@ -16,26 +27,33 @@ var (
 	flagDeleteDangling = kingpin.Flag("delete-dangling", "Delete dangling images").Default("false").Bool()
 	flagDeleteLeaf     = kingpin.Flag("delete-leaf", "Delete leaf images").Default("false").Bool()
 	flagSafetyDuration = kingpin.Flag("safety-duration", "Don't delete any images created in the last DUR time").Short('d').PlaceHolder("DUR").Default("1h").HintOptions("30m", "1h", "24h").Duration()
-	// now                = time.Unix(time.Now().Unix(), 0) // Now without sub-seconds.
-	// imagesToSkip       = make(map[string]bool)
-
-	// imagesByID map[string]types.Image
 )
 
 type meta struct {
-	isDangling bool
-	isExcluded bool
-	isRunning  bool
+	image          image.Image
+	isDangling     bool
+	isExcluded     bool
+	isInUse        bool
+	isTaggedOrphan bool
+	isSafe         bool
+	doDelete       int
 }
 
 func (m *meta) String() string {
-	return fmt.Sprintf("dangling: %t  excluded: %t  running: %t", m.isDangling, m.isExcluded, m.isRunning)
+	return fmt.Sprintf(
+		"d: %-5t  e: %-5t  r: %-5t  to: %-5t  s:%-5t  X:%d",
+		m.isDangling,
+		m.isExcluded,
+		m.isInUse,
+		m.isTaggedOrphan,
+		m.isSafe,
+		m.doDelete,
+	)
 }
 
 func main() {
 	// Stderr is for ERRORS!
 	kingpin.CommandLine.Writer(os.Stdout)
-	log.SetOutput(os.Stdout)
 
 	kingpin.HelpFlag.Short('h')
 	kingpin.CommandLine.Help = "Clean up docker images that seem safe to remove."
@@ -51,7 +69,7 @@ func main() {
 	allImages := docker.AllImages()
 	imagesByID := make(map[string]*meta, len(allImages))
 	for _, image := range allImages {
-		meta := &meta{}
+		meta := &meta{image: image}
 		for _, tag := range image.RepoTags {
 			if _, ok := excluded[tag]; ok {
 				meta.isExcluded = true
@@ -61,13 +79,84 @@ func main() {
 		imagesByID[image.ID] = meta
 	}
 
-	// add dangling in formation
+	// mark dangling information
 	for _, image := range docker.DanglingImages() {
-		imagesByID[image.ID].isDangling = true
+		m := imagesByID[image.ID]
+		if m != nil {
+			m.isDangling = true
+		}
 	}
 
-	for id, m := range imagesByID {
-		fmt.Printf("NARF %s %s\n", id, m)
+	// mark tagged orphan information
+	for _, image := range docker.TaggedOrphanImages() {
+		m := imagesByID[image.ID]
+		if m != nil {
+			m.isTaggedOrphan = true
+		}
+	}
+
+	// mark images in a container
+	for _, imageID := range docker.AllContainerImageIDs() {
+		m := imagesByID[imageID]
+		if m != nil {
+			m.isInUse = true
+		}
+	}
+
+	// mark images that are too recent
+	for _, m := range imagesByID {
+		if m.image.AgeOf() < *flagSafetyDuration {
+			m.isSafe = true
+		}
+	}
+
+	// mark the parents of keep as Keep
+	// FIXME: This isn't correct... is it even needed?
+	for _, m := range imagesByID {
+		for parentID := m.image.ParentID; len(parentID) != 0; parentID = imagesByID[parentID].image.ParentID {
+			parentMeta := imagesByID[parentID]
+			if parentMeta.doDelete == Keep {
+				break
+			}
+			parentMeta.doDelete = Keep
+		}
+	}
+
+	for _, m := range imagesByID {
+		if m.isExcluded || m.isInUse || m.isSafe {
+			continue
+		}
+		if m.isDangling {
+			m.doDelete = DeleteDangling
+		} else if m.isTaggedOrphan {
+			m.doDelete = DeleteLeaf
+		}
+	}
+
+	ids := make([]string, len(imagesByID))
+	i := 0
+	for id := range imagesByID {
+		ids[i] = id
+		i++
+	}
+	sort.Strings(ids)
+
+	for _, id := range ids {
+		m := imagesByID[id]
+		if m == nil {
+			log.Fatalf("Internal error! %v", id)
+		}
+		switch m.doDelete {
+		case Keep:
+			fmt.Printf("Skipping tagged parent image %s\n", m.image)
+		case DeleteDangling:
+			// fmt.Printf("Deleting dangling %s\n", m.image)
+			nukeImage("dangling", m.image, *flagDeleteDangling)
+		case DeleteLeaf:
+			// fmt.Printf("Deleting leaf     %s\n", m.image)
+			nukeImage("leaf", m.image, *flagDeleteLeaf)
+		}
+		// fmt.Printf("NARF %s %s\n", m, m.image)
 	}
 	// for _, image := range docker.DanglingImages() {
 	//   fmt.Printf("D %s %s\n", image.ShortID(), image.IsDangling())
@@ -232,23 +321,23 @@ func asSet(elements []string) map[string]struct{} {
 //   }
 // }
 
-// func nukeImage(kind string, image types.Image, reallyDelete bool) {
-//   if reallyDelete {
-//     log.Printf("Deleting %s image %s: %s", kind, shortImageDigest(image.ID), strings.Join(image.RepoTags, ","))
+func nukeImage(kind string, image image.Image, reallyDelete bool) {
+	if reallyDelete {
+		fmt.Printf("Deleting %s image %s\n", kind, image)
 
-//     var imagesToNuke []string
-//     if len(image.RepoTags) <= 1 {
-//       imagesToNuke = append(imagesToNuke, image.ID)
-//     } else {
-//       imagesToNuke = image.RepoTags
-//     }
-//     for _, imageIDOrTag := range imagesToNuke {
-//       _, err := docker.ImageRemove(context.Background(), types.ImageRemoveOptions{ImageID: imageIDOrTag, PruneChildren: true})
-//       if err != nil {
-//         log.Printf("Error while removing %s image %s: %s", kind, shortImageDigest(imageIDOrTag), err)
-//       }
-//     }
-//   } else {
-//     log.Printf("Would have deleted %s image %s: %s", kind, shortImageDigest(image.ID), strings.Join(image.RepoTags, ","))
-//   }
-// }
+		// var imagesToNuke []string
+		// if len(image.RepoTags) <= 1 {
+		//   imagesToNuke = append(imagesToNuke, image.ID)
+		// } else {
+		//   imagesToNuke = image.RepoTags
+		// }
+		// for _, imageIDOrTag := range imagesToNuke {
+		//   _, err := docker.ImageRemove(context.Background(), types.ImageRemoveOptions{ImageID: imageIDOrTag, PruneChildren: true})
+		//   if err != nil {
+		//     log.Printf("Error while removing %s image %s: %s", kind, image.String(), err)
+		//   }
+		// }
+	} else {
+		fmt.Printf("Would have deleted %s image %s\n", kind, image)
+	}
+}

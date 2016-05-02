@@ -45,6 +45,27 @@ func New() *Client {
 	return &Client{docker: dockerClient, ctx: context.Background()}
 }
 
+// AllContainerImageIDs returns the image ids for all containers.
+func (c Client) AllContainerImageIDs() []string {
+	containers, err := c.docker.ContainerList(c.ctx, types.ContainerListOptions{All: true})
+	if err != nil {
+		log.Fatalf("Error getting docker containers: %s", err)
+	}
+
+	// Find images belonging to containers.
+	var imageIDs []string
+	for _, container := range containers {
+		inspected, err := c.docker.ContainerInspect(c.ctx, container.ID)
+		if err != nil {
+			log.Printf("Error getting container info for %s: %s", container.ID, err)
+			continue
+		}
+		imageIDs = append(imageIDs, inspected.Image)
+	}
+
+	return imageIDs
+}
+
 // AllImages returns all images in docker.
 //
 // This is the same as running `docker ps --all`
