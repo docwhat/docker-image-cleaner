@@ -7,26 +7,26 @@ notifications:
     on_success: never
     on_failure: always
 
-before_install:
-  - go version
+# before_install:
+#   - go version
 
-install:
-  - rake setup
+# install:
+#   - rake setup
 
-script:
-  - rake -j2 lint test
-  - rake -j2 xbuild
-  - ls -alh build
+# script:
+#   - rake -j2 lint test
+#   - rake -j2 xbuild
+#   - ls -alh build
 
-deploy:
-  provider: releases
-  api_key:
-    secure: K1M2yhS9Say7aGEYjhP3qY+GG08S7gX9CdBL8PAZUt1/Y9Mevyq/qI1y5MhDLhsBMyDYg7KgHQ9IIFGygSyCHzeRCJls276Spm3Cyv93Gd+zwQf34fX8qyvhPxQp4VMt/k0TY89W8ExTFUr713ZbgkSsF5d+u8maWW94WtYGfbL8G74sXWI7pp1owxiG2aY19ksgXoYV0lqI9Z8gdb+6AnXp6UiCLhw/j8w7fGmhL/wiKW0PlSm5Kd1uSmZV2RUxoqUlO8e6+1O2Zna3yfv8hAPJDlP69zvh5PRthmh73B+kH+qXqnTplP4SV6CnHVvee7/0DAtogzS0GD8tfiVv+Y2usBUWtVZbZgtutqwr3kRSiUQ1jH1cLe9xLZnV7wIUmUPz536iOEVCnvRtr9W0bUjy78unVUr+T5m6WTWFphswBeIOc+RnFSOTw/nu0U4/wlq6VSr0HkmVmJASu/ok1bWwuBDA7j5sNDE9wAPkZq82w7ir1n3oxYinw3x8eceGDUXQJauTn8hlEwEfe5jjjrs/Jx4rfiDqR2XnlQ+UZaNBb3yRKwIa6YbipzX8H1YBT3o/DdXW1DYF/7IUvqVitZWDCR2Udrfr2vVV6Bdh5zlL1j7lRsDOTKT3tGPjLVRkT1tRcGNgoX1g/muVwnj/7MDMvOUmsT0Vi1fiGfwzXOg=
-  file:
-    - build/docker-image-cleaner-darwin-amd64
-    - build/docker-image-cleaner-linux-amd64
-    - build/docker-image-cleaner-linux-ppc64le
-    - build/docker-image-cleaner-windows-amd64
-  on:
-    repo: 'docwhat/docker-image-cleaner'
-    tags: true
+# deploy:
+#   provider: releases
+#   api_key:
+#     secure: K1M2yhS9Say7aGEYjhP3qY+GG08S7gX9CdBL8PAZUt1/Y9Mevyq/qI1y5MhDLhsBMyDYg7KgHQ9IIFGygSyCHzeRCJls276Spm3Cyv93Gd+zwQf34fX8qyvhPxQp4VMt/k0TY89W8ExTFUr713ZbgkSsF5d+u8maWW94WtYGfbL8G74sXWI7pp1owxiG2aY19ksgXoYV0lqI9Z8gdb+6AnXp6UiCLhw/j8w7fGmhL/wiKW0PlSm5Kd1uSmZV2RUxoqUlO8e6+1O2Zna3yfv8hAPJDlP69zvh5PRthmh73B+kH+qXqnTplP4SV6CnHVvee7/0DAtogzS0GD8tfiVv+Y2usBUWtVZbZgtutqwr3kRSiUQ1jH1cLe9xLZnV7wIUmUPz536iOEVCnvRtr9W0bUjy78unVUr+T5m6WTWFphswBeIOc+RnFSOTw/nu0U4/wlq6VSr0HkmVmJASu/ok1bWwuBDA7j5sNDE9wAPkZq82w7ir1n3oxYinw3x8eceGDUXQJauTn8hlEwEfe5jjjrs/Jx4rfiDqR2XnlQ+UZaNBb3yRKwIa6YbipzX8H1YBT3o/DdXW1DYF/7IUvqVitZWDCR2Udrfr2vVV6Bdh5zlL1j7lRsDOTKT3tGPjLVRkT1tRcGNgoX1g/muVwnj/7MDMvOUmsT0Vi1fiGfwzXOg=
+#   file:
+#     - build/docker-image-cleaner-darwin-amd64
+#     - build/docker-image-cleaner-linux-amd64
+#     - build/docker-image-cleaner-linux-ppc64le
+#     - build/docker-image-cleaner-windows-amd64
+#   on:
+#     repo: 'docwhat/docker-image-cleaner'
+#     tags: true
