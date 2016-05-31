@@ -4,7 +4,7 @@ import (
 	"log"
 	"os"
 
-	"docwhat.org/docker-image-cleaner/image"
+	"github.com/docwhat/docker-image-cleaner/image"
 
 	"golang.org/x/net/context"
 

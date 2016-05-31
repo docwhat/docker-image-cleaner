@@ -19,7 +19,7 @@ If you have go installed, then you can get the binary `docker-image-cleaner`
 with the following command:
 
 ``` .sh
-$ go get -u docwhat.org/docker-image-cleaner
+$ go get -u github.com/docwhat/docker-image-cleaner
 ```
 
     usage: docker-image-cleaner [<flags>]

@@ -6,8 +6,8 @@ import (
 	"os"
 	"sort"
 
-	client "docwhat.org/docker-image-cleaner/client"
-	image "docwhat.org/docker-image-cleaner/image"
+	client "github.com/docwhat/docker-image-cleaner/client"
+	image "github.com/docwhat/docker-image-cleaner/image"
 
 	"github.com/alecthomas/kingpin"
 )
