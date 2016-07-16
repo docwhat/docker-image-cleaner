@@ -20,14 +20,18 @@ task :setup do
     *%w(
       go get -u
       github.com/Masterminds/glide
+      github.com/alecthomas/gometalinter
       github.com/mitchellh/gox
     )
   )
   sh 'glide install'
+  sh 'gometalinter --install --update'
 end
 
 desc 'Lint the code'
-task lint: %w(lint:vet lint:golint)
+task :lint do
+  sh 'gometalinter --deadline=1m --disable=gotype --disable=gocyclo .'
+end
 
 namespace :lint do
   task :vet do
