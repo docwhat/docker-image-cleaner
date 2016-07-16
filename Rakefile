@@ -16,12 +16,18 @@ end
 desc 'Fetch all dependencies'
 task :setup do
   sh 'go version'
-  sh 'go get -u github.com/Masterminds/glide github.com/golang/lint/golint'
+  sh(
+    *%w(
+      go get -u
+      github.com/Masterminds/glide
+      github.com/mitchellh/gox
+    )
+  )
   sh 'glide install'
 end
 
 desc 'Lint the code'
-task lint: %w( lint:vet lint:golint )
+task lint: %w(lint:vet lint:golint)
 
 namespace :lint do
   task :vet do
@@ -38,30 +44,26 @@ task :test do
   sh 'go test -v'
 end
 
-desc 'Build for the native platform'
-task :build do
+desc 'Alias for :install'
+task build: :install
+
+desc 'Install for the native platform'
+task :install do
   sh 'go install -v'
 end
 
-def find_binary(name, os, arch)
-  gopath = ENV['GOPATH']
-  [
-    File.join(gopath, 'bin', "#{os}_#{arch}", name),
-    File.join(gopath, 'bin', "#{os}_#{arch}", "#{name}.exe"),
-    File.join(gopath, 'bin', name),
-    File.join(gopath, 'bin', "#{name}.exe")
-  ].select { |b| File.executable? b }.compact.first
-end
-
-def xbuild(os, arch)
-  mkdir_p 'build'
-  sh "env GOOS=#{os} GOARCH=#{arch} go install"
-  binary = find_binary('docker-image-cleaner', os, arch)
-  mv binary, "build/docker-image-cleaner-#{os}-#{arch}"
-end
-
 desc 'Build for all supported platforms'
-task xbuild: %w( build:lin64 build:mac64 build:win64 build:ppc64le )
+task :xbuild do
+  os = %(darwin linux windows)
+  arch = 'amd64 ppc64le'
+  format = 'build/{{.Dir}}_{{.OS}}_{{.Arch}}'
+  sh(
+    *%W(
+      env CGENABLE=0
+      gox -os=#{os} -arch=#{arch} -output=#{format}
+    )
+  )
+end
 
 namespace :build do
   task(:mac64)   { xbuild 'darwin',  'amd64' }
