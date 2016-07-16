@@ -1,8 +1,8 @@
-hash: d8be53875f1e4d291c68a0b31a00a4eb2a171d37efdad3b551d1aa41da7841a6
-updated: 2016-03-19T22:48:37.717652-04:00
+hash: a1391f88aac33a562cd2d916d4bdebf8d5b1c585f9ffd5a09e81bac5cd527f24
+updated: 2016-07-16T02:18:05.870803646-04:00
 imports:
 - name: github.com/alecthomas/kingpin
-  version: 8cccfa8eb2e3183254457fb1749b2667fbc364c7
+  version: 92b2733684bc5f1971162349ce098fe0d070e2a9
 - name: github.com/alecthomas/template
   version: 14fd436dd20c3cc65242a9f396b61bfc8a3926fc
   subpackages:
@@ -48,4 +48,4 @@ imports:
   version: 9d4e42a20653790449273b3c85e67d6d8bae6e2e
   subpackages:
   - unix
-devImports: []
+testImports: []

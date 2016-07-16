@@ -1,4 +1,4 @@
-package: docwhat.org/docker-image-cleaner
+package: github.com/docwhat/docker-image-cleaner
 import:
 - package: github.com/docker/engine-api
   version: 0a52c8c25292da98472246bbf1a69f71156e83cd
