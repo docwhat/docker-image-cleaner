@@ -16,7 +16,7 @@ import (
 )
 
 var (
-	version            = "4.0.5"
+	version            = "4.0.6"
 	flagExcludes       = kingpin.Flag("exclude", "Leaf images to exclude specified by image:tag").Short('x').PlaceHolder("IMAGE:TAG").Strings()
 	flagDeleteDangling = kingpin.Flag("delete-dangling", "Delete dangling images").Default("false").Bool()
 	flagDeleteLeaf     = kingpin.Flag("delete-leaf", "Delete leaf images").Default("false").Bool()
