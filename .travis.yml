@@ -15,7 +15,7 @@ install:
 
 script:
   - rake lint test xbuild
-  - ls -alh build
+  - ls -lh build
 
 deploy:
   provider: releases
