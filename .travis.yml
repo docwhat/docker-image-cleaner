@@ -14,8 +14,7 @@ install:
   - rake setup
 
 script:
-  - rake -j2 lint test
-  - rake -j2 xbuild
+  - rake lint test xbuild
   - ls -alh build
 
 deploy:
